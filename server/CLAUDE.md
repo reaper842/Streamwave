@@ -141,7 +141,9 @@ GET    /api/v1/browse/featured
 
 ### Current Test Coverage
 
-- 40/40 tests passing: 20 unit (auth helpers) + 11 register integration + 9 login integration
+- 67/67 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset
+- 39/39 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit
+- Run server tests: `npm run test` | Run client tests: `npm run test:client`
 
 ---
 
