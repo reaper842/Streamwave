@@ -7,6 +7,7 @@ import meilisearchPlugin from './plugins/meilisearch'
 import rateLimitPlugin from './plugins/rate-limit'
 import authPlugin from './plugins/auth'
 import authRoutes from './routes/auth'
+import tracksRoutes from './routes/tracks'
 
 const PORT = parseInt(process.env['SERVER_PORT'] ?? '3001', 10)
 const HOST = process.env['SERVER_HOST'] ?? '0.0.0.0'
@@ -50,6 +51,7 @@ async function bootstrap() {
   // ── Routes ─────────────────────────────────────────────────────────────────
 
   fastify.register(authRoutes, { prefix: '/api/v1/auth' })
+  fastify.register(tracksRoutes, { prefix: '/api/v1/tracks' })
 
   // Additional routes will be registered here as milestones are completed
 
