@@ -88,9 +88,13 @@ POST   /api/v1/auth/password-reset
 POST   /api/v1/auth/password-reset/confirm
 GET    /api/v1/tracks/:id
 GET    /api/v1/tracks/:id/stream         → signed R2 URL
-GET    /api/v1/albums/:id
-GET    /api/v1/artists/:id
-GET    /api/v1/artists/:id/albums
+GET    /api/v1/albums/:id                → album detail + full track list
+GET    /api/v1/artists/:id               → artist metadata
+GET    /api/v1/artists/:id/albums        → cursor-paginated albums
+GET    /api/v1/artists/:id/top-tracks    → top N tracks (default 10)
+GET    /api/v1/playlists/:id             → playlist detail + track list (M4)
+GET    /api/v1/browse/featured           → featured playlists + new releases
+GET    /api/v1/browse/genres             → static genre list with hex colors
 GET    /api/v1/search?q=&type=
 GET    /api/v1/library/liked-songs
 POST   /api/v1/library/liked-songs/:trackId
@@ -150,6 +154,11 @@ GET    /api/v1/browse/featured
 ## Key Backend Files
 
 - `server/index.ts` — Fastify entry point, plugin/route registration
+- `server/services/content.ts` — content business logic (albums, artists, playlists, browse)
+- `server/routes/albums.ts` — album routes
+- `server/routes/artists.ts` — artist routes (/:id, /:id/albums, /:id/top-tracks)
+- `server/routes/playlists.ts` — playlist routes
+- `server/routes/browse.ts` — browse routes (featured, genres)
 - `server/services/auth.ts` — All auth business logic (register, login, tokens, password reset)
 - `server/plugins/auth.ts` — JWT verification plugin (dual-verify: custom JWT + NextAuth cookie)
 - `server/plugins/rate-limit.ts` — Redis-backed rate limiting

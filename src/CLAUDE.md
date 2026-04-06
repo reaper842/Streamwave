@@ -113,6 +113,20 @@ Singleton class wrapping Howler.js. Must support:
 
 ---
 
+## Content Components (M4) — `src/components/content/`
+
+- `AlbumCard` / `ArtistCard` / `PlaylistCard` — card components with hover play button + right-click ContextMenu
+- `TrackRow` + `TrackListHeader` — track row with album art, links, duration, three-dot context menu
+- `TrackList` — header + list of TrackRows
+- `CardGrid` — responsive 2–6 column CSS grid
+- `PlayButton` — `PlayAlbumButton` / `PlayPlaylistButton` — client components for RSC pages
+
+## Server-side Data Layer (RSC only)
+
+- `src/lib/data/content.ts` — Prisma-based data fetchers for RSC pages (no HTTP loopback)
+  - `fetchAlbum`, `fetchArtist`, `fetchArtistAlbums`, `fetchArtistTopTracks`, `fetchPlaylist`, `fetchFeatured`, `getStaticGenres`
+- Import ONLY from Server Components / server actions. Never from `"use client"` components.
+
 ## Key Frontend Files
 
 - `src/app/globals.css` — Tailwind 4 theme + design tokens
@@ -122,4 +136,5 @@ Singleton class wrapping Howler.js. Must support:
 - `src/stores/auth.ts` — Login/register/logout actions + error state
 - `src/lib/audio/engine.ts` — Howler.js singleton
 - `src/lib/api/client.ts` — Typed fetch wrapper with auth header injection
+- `src/types/content.ts` — Shared content types (TrackSummary, AlbumDetail, PlaylistDetail, etc.)
 - `src/proxy.ts` — Next.js 16 route guard (replaces middleware.ts)
