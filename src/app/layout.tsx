@@ -1,4 +1,6 @@
 import { PlaybackBar } from '@/components/layout/PlaybackBar'
+import { AudioEngineProvider } from '@/components/providers/AudioEngineProvider'
+import { KeyboardShortcutsProvider } from '@/components/providers/KeyboardShortcutsProvider'
 import { SessionProvider } from '@/components/providers/SessionProvider'
 import { ToastProvider } from '@/components/ui/Toast'
 import type { Metadata } from 'next'
@@ -24,10 +26,14 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} h-full`}>
       <body className="h-full bg-bg-base text-text-secondary antialiased">
         <SessionProvider>
-          <ToastProvider>
-            {children}
-            <PlaybackBar />
-          </ToastProvider>
+          <AudioEngineProvider>
+            <KeyboardShortcutsProvider>
+              <ToastProvider>
+                {children}
+                <PlaybackBar />
+              </ToastProvider>
+            </KeyboardShortcutsProvider>
+          </AudioEngineProvider>
         </SessionProvider>
       </body>
     </html>
