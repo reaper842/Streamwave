@@ -4,6 +4,9 @@ import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import redisPlugin from './plugins/redis'
 import meilisearchPlugin from './plugins/meilisearch'
+import rateLimitPlugin from './plugins/rate-limit'
+import authPlugin from './plugins/auth'
+import authRoutes from './routes/auth'
 
 const PORT = parseInt(process.env['SERVER_PORT'] ?? '3001', 10)
 const HOST = process.env['SERVER_HOST'] ?? '0.0.0.0'
@@ -30,8 +33,13 @@ async function bootstrap() {
     secret: process.env['NEXTAUTH_SECRET'] ?? 'dev-secret-change-in-production',
   })
 
+  // Data-layer plugins (redis and meilisearch must come before rate-limit and auth)
   await fastify.register(redisPlugin)
   await fastify.register(meilisearchPlugin)
+
+  // Cross-cutting concerns
+  await fastify.register(rateLimitPlugin)
+  await fastify.register(authPlugin)
 
   // ── Health check ───────────────────────────────────────────────────────────
 
@@ -39,8 +47,30 @@ async function bootstrap() {
     return { status: 'ok', timestamp: new Date().toISOString() }
   })
 
-  // ── Routes (registered as milestones are completed) ────────────────────────
-  // Routes will be added under /api/v1/ prefix in subsequent milestones
+  // ── Routes ─────────────────────────────────────────────────────────────────
+
+  fastify.register(authRoutes, { prefix: '/api/v1/auth' })
+
+  // Additional routes will be registered here as milestones are completed
+
+  // ── Global error handler ───────────────────────────────────────────────────
+
+  fastify.setErrorHandler((err, _request, reply) => {
+    const error = err as Error & { statusCode?: number; code?: string }
+    const statusCode = error.statusCode ?? 500
+    const code = error.code ?? 'INTERNAL_ERROR'
+
+    if (statusCode >= 500) {
+      fastify.log.error(error)
+    }
+
+    reply.status(statusCode).send({
+      error: {
+        code,
+        message: statusCode >= 500 ? 'An unexpected error occurred' : error.message,
+      },
+    })
+  })
 
   // ── Start ──────────────────────────────────────────────────────────────────
 
