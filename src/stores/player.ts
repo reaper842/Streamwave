@@ -149,10 +149,10 @@ export const usePlayerStore = create<PlayerState>()(
         set({ isLoading: true, error: null })
         try {
           const res = await apiClient.get<{
-            tracks: Array<{ track: { id: string } }>
+            tracks: Array<{ id: string }>
           }>(`/playlists/${playlistId}`)
 
-          const trackIds = res.data.tracks.map((t) => t.track.id)
+          const trackIds = res.data.tracks.map((t) => t.id)
           const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
           getAudioEngine().play(tracks, startIndex)
         } catch {
