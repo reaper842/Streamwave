@@ -8,6 +8,10 @@ import rateLimitPlugin from './plugins/rate-limit'
 import authPlugin from './plugins/auth'
 import authRoutes from './routes/auth'
 import tracksRoutes from './routes/tracks'
+import albumsRoutes from './routes/albums'
+import artistsRoutes from './routes/artists'
+import playlistsRoutes from './routes/playlists'
+import browseRoutes from './routes/browse'
 
 const PORT = parseInt(process.env['SERVER_PORT'] ?? '3001', 10)
 const HOST = process.env['SERVER_HOST'] ?? '0.0.0.0'
@@ -52,8 +56,10 @@ async function bootstrap() {
 
   fastify.register(authRoutes, { prefix: '/api/v1/auth' })
   fastify.register(tracksRoutes, { prefix: '/api/v1/tracks' })
-
-  // Additional routes will be registered here as milestones are completed
+  fastify.register(albumsRoutes, { prefix: '/api/v1/albums' })
+  fastify.register(artistsRoutes, { prefix: '/api/v1/artists' })
+  fastify.register(playlistsRoutes, { prefix: '/api/v1/playlists' })
+  fastify.register(browseRoutes, { prefix: '/api/v1/browse' })
 
   // ── Global error handler ───────────────────────────────────────────────────
 
