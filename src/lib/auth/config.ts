@@ -3,7 +3,6 @@ import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import GitHub from 'next-auth/providers/github'
 import type { NextAuthConfig } from 'next-auth'
-import { prisma } from '@/lib/prisma'
 
 const FASTIFY_API_URL = process.env['FASTIFY_API_URL'] ?? 'http://localhost:3001'
 
@@ -11,6 +10,8 @@ const FASTIFY_API_URL = process.env['FASTIFY_API_URL'] ?? 'http://localhost:3001
 
 /** Find or create a DB user for OAuth sign-ins. Returns the DB user id. */
 async function findOrCreateOAuthUser(email: string, name: string | null, image: string | null) {
+  const { prisma } = await import('@/lib/prisma')
+
   const existing = await prisma.user.findUnique({
     where: { email },
     select: { id: true, display_name: true, avatar_url: true },
