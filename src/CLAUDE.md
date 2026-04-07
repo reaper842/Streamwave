@@ -124,6 +124,15 @@ Singleton class wrapping Howler.js. Must support:
 ## Library Components (M5) — `src/components/library/`
 
 - `PlayLikedSongsButton` — play + shuffle buttons for Liked Songs page; calls `usePlayerStore.playFromTrackIds`
+- `AddToPlaylistModal` — modal listing user playlists to add a track; "New playlist" creates + adds in one action
+- `EditPlaylistModal` — modal form to edit playlist name/description; calls `useLibraryStore.updatePlaylist`
+- `DeletePlaylistDialog` — confirmation modal; calls `useLibraryStore.deletePlaylist` then navigates to `/library`
+- `PlaylistControls` — client component composing play button + owner-only "…" dropdown (Edit/Delete); embedded in playlist RSC page
+
+## Content Buttons (M5) — `src/components/content/`
+
+- `FollowArtistButton` — client toggle button wired to `useLibraryStore.toggleFollowArtist`; shows "Follow"/"Following"
+- `SaveAlbumButton` — client toggle button wired to `useLibraryStore.toggleSaveAlbum`; shows "Save"/"Saved"
 
 ## Server-side Data Layer (RSC only)
 
