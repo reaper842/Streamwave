@@ -57,6 +57,7 @@ interface LibraryState {
   deletePlaylist: (id: string) => Promise<void>
   addTrackToPlaylist: (playlistId: string, trackId: string, position?: number) => Promise<void>
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => Promise<void>
+  reorderPlaylistTracks: (playlistId: string, trackId: string, newPosition: number) => Promise<void>
 
   clearError: () => void
 }
@@ -258,6 +259,18 @@ export const useLibraryStore = create<LibraryState>()(
           }))
         } catch (err) {
           const msg = err instanceof ApiRequestError ? err.message : 'Failed to remove track'
+          set({ error: msg })
+        }
+      },
+
+      reorderPlaylistTracks: async (playlistId, trackId, newPosition) => {
+        try {
+          await apiClient.patch(`/playlists/${playlistId}/tracks/reorder`, {
+            trackId,
+            newPosition,
+          })
+        } catch (err) {
+          const msg = err instanceof ApiRequestError ? err.message : 'Failed to reorder tracks'
           set({ error: msg })
         }
       },
