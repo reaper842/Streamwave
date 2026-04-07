@@ -1,8 +1,9 @@
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
+import { auth } from '@/lib/auth/config'
 import { fetchPlaylist } from '@/lib/data/content'
 import { TrackList } from '@/components/content/TrackList'
-import { PlayPlaylistButton } from '@/components/content/PlayButton'
+import { PlaylistControls } from '@/components/library/PlaylistControls'
 import { formatDuration } from '@/lib/utils/formatDuration'
 
 interface Props {
@@ -11,9 +12,11 @@ interface Props {
 
 export default async function PlaylistPage({ params }: Props) {
   const { id } = await params
-  const playlist = await fetchPlaylist(id)
+  const [playlist, session] = await Promise.all([fetchPlaylist(id), auth()])
 
   if (!playlist) notFound()
+
+  const isOwner = session?.user?.id === playlist.owner.id
 
   return (
     <div>
@@ -64,7 +67,12 @@ export default async function PlaylistPage({ params }: Props) {
 
       {/* Controls */}
       <div className="flex items-center gap-4 px-6 py-4">
-        <PlayPlaylistButton playlistId={playlist.id} />
+        <PlaylistControls
+          playlistId={playlist.id}
+          playlistName={playlist.name}
+          playlistDescription={playlist.description}
+          isOwner={isOwner}
+        />
       </div>
 
       {/* Track list */}
