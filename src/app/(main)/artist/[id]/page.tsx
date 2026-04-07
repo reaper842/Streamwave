@@ -4,6 +4,7 @@ import { fetchArtist, fetchArtistAlbums, fetchArtistTopTracks } from '@/lib/data
 import { AlbumCard } from '@/components/content/AlbumCard'
 import { TrackList } from '@/components/content/TrackList'
 import { CardGrid } from '@/components/content/CardGrid'
+import { FollowArtistButton } from '@/components/content/FollowArtistButton'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -41,6 +42,9 @@ export default async function ArtistPage({ params }: Props) {
         <div className="absolute bottom-4 left-6">
           <p className="mb-1 text-xs font-semibold uppercase text-text-primary">Verified Artist</p>
           <h1 className="text-6xl font-bold text-text-primary">{artist.name}</h1>
+        </div>
+        <div className="absolute bottom-4 right-6">
+          <FollowArtistButton artistId={artist.id} />
         </div>
       </div>
 
