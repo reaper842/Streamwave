@@ -10,12 +10,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 export function Sidebar() {
-  const { sidebarOpen } = useUIStore()
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const pathname = usePathname()
-  const { playlists, createPlaylist } = useLibraryStore((s) => ({
-    playlists: s.playlists,
-    createPlaylist: s.createPlaylist,
-  }))
+  const playlists = useLibraryStore((s) => s.playlists)
+  const createPlaylist = useLibraryStore((s) => s.createPlaylist)
   const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 
   const navLinks = [
