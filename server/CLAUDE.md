@@ -145,7 +145,7 @@ GET    /api/v1/browse/featured
 
 ### Current Test Coverage
 
-- 67/67 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset
+- 82/82 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs
 - 39/39 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit
 - Run server tests: `npm run test` | Run client tests: `npm run test:client`
 
@@ -154,6 +154,8 @@ GET    /api/v1/browse/featured
 ## Key Backend Files
 
 - `server/index.ts` — Fastify entry point, plugin/route registration
+- `server/services/library.ts` — liked songs, saved albums, followed artists, playlist business logic
+- `server/routes/library.ts` — library API routes (/library/liked-songs, etc.)
 - `server/services/content.ts` — content business logic (albums, artists, playlists, browse)
 - `server/routes/albums.ts` — album routes
 - `server/routes/artists.ts` — artist routes (/:id, /:id/albums, /:id/top-tracks)

@@ -189,3 +189,49 @@
 - When restarting dev server after this fix: `rm -rf .next/dev && npm run dev` to force Turbopack recompilation
 - The `[app-route]` and `[app-rsc]` Turbopack contexts use separate module registries and chunk sets (non-SSR `server/chunks/` vs SSR `server/chunks/ssr/`)
 - Next session should begin M5: Library & Playlist Management
+
+---
+
+## Session 11 — 2026-04-07: M5 Library API — Liked Songs (GET/POST/DELETE)
+
+**Goal:** Build the first set of Library API endpoints: liked songs GET (cursor-paginated), POST (like), DELETE (unlike).
+
+**What was done:**
+
+- Created `server/services/library.ts`:
+  - `getLikedSongs(userId, cursor?, limit?)` — cursor-paginated list (newest first), includes full track + artist + album join
+  - `likeSong(userId, trackId)` — upsert; throws 404 if track not found; idempotent (re-like keeps original `liked_at`)
+  - `unlikeSong(userId, trackId)` — `deleteMany` (idempotent no-op if not liked)
+  - `isTrackLiked(userId, trackId)` — boolean check helper for future UI use
+
+- Created `server/routes/library.ts`:
+  - `GET /api/v1/library/liked-songs?cursor=<iso>&limit=<n>` — auth required; returns `{ data: LikedTrack[], meta: { nextCursor, total } }`
+  - `POST /api/v1/library/liked-songs/:trackId` — auth required; UUID validation; 201 `{ data: { liked: true } }`
+  - `DELETE /api/v1/library/liked-songs/:trackId` — auth required; UUID validation; 204 no content
+
+- Updated `server/index.ts` — registered `libraryRoutes` under `/api/v1/library`
+- Updated `server/test/buildApp.ts` — added library routes so integration tests can authenticate and hit library endpoints
+
+- Created `server/routes/__tests__/library-liked-songs.test.ts` (15 tests):
+  - GET: 401 unauthenticated, 200 empty list, 200 with liked track (verifies full shape + ISO date), pagination limit+nextCursor, 400 invalid limit
+  - POST: 401 unauthenticated, 400 non-UUID, 404 non-existent UUID, 201 happy path, 201 idempotent re-like
+  - DELETE: 401 unauthenticated, 400 non-UUID, 204 unlike, 204 idempotent unlike, 204 + GET confirms removal
+  - Tests self-seed fixtures (`beforeAll` creates artist → album → track via Prisma directly)
+
+- Updated `server/CLAUDE.md` — test count 82/82, new files documented
+
+**What was NOT completed (carry to next session):**
+
+- `GET /api/v1/library/saved-albums` + POST/DELETE
+- `GET /api/v1/library/followed-artists` + POST/DELETE
+- Playlist CRUD endpoints (POST/PATCH/DELETE playlists, track add/remove/reorder)
+- `useLibraryStore` Zustand store
+- Library UI pages
+
+**Key technical notes for future sessions:**
+
+- Cursor for liked songs is the ISO-8601 `liked_at` of the last item on the current page; next page fetches `liked_at < cursor`
+- `prisma.likedSong.upsert` with `update: {}` = idempotent like without bumping `liked_at` — consistent Spotify behaviour
+- Library integration tests self-seed: `beforeAll` creates `Artist → Album → Track` via Prisma, `afterAll` tears down in reverse order. Pattern to follow for saved-albums and followed-artists tests too
+- `buildApp.ts` now includes both `authRoutes` and `libraryRoutes` — any new library route file should be registered there too
+- 82/82 tests pass; `npm run build` → 0 errors
