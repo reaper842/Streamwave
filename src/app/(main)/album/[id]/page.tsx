@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { fetchAlbum } from '@/lib/data/content'
 import { TrackList } from '@/components/content/TrackList'
 import { PlayAlbumButton } from '@/components/content/PlayButton'
+import { SaveAlbumButton } from '@/components/content/SaveAlbumButton'
 import { formatDuration } from '@/lib/utils/formatDuration'
 
 interface Props {
@@ -66,6 +67,7 @@ export default async function AlbumPage({ params }: Props) {
       {/* Controls */}
       <div className="flex items-center gap-4 px-6 py-4">
         <PlayAlbumButton albumId={album.id} />
+        <SaveAlbumButton albumId={album.id} />
       </div>
 
       {/* Track list */}
