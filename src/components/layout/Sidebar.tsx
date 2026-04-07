@@ -1,14 +1,22 @@
 'use client'
 
+import Image from 'next/image'
 import { cn } from '@/lib/utils/cn'
 import { useUIStore } from '@/stores/ui'
-import { Heart, Home, Library, Plus, Search } from 'lucide-react'
+import { useLibraryStore } from '@/stores/library'
+import { usePlayerStore } from '@/stores/player'
+import { Heart, Home, Library, Music, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 export function Sidebar() {
   const { sidebarOpen } = useUIStore()
   const pathname = usePathname()
+  const { playlists, createPlaylist } = useLibraryStore((s) => ({
+    playlists: s.playlists,
+    createPlaylist: s.createPlaylist,
+  }))
+  const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
@@ -16,6 +24,14 @@ export function Sidebar() {
   ]
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
+
+  const handleCreatePlaylist = async () => {
+    const name = `My Playlist #${playlists.length + 1}`
+    const result = await createPlaylist(name)
+    if (result) {
+      window.location.href = `/playlist/${result.id}`
+    }
+  }
 
   return (
     <aside
@@ -63,18 +79,23 @@ export function Sidebar() {
             !sidebarOpen && 'justify-center px-0',
           )}
         >
-          <button
+          <Link
+            href="/library"
             className={cn(
-              'flex items-center gap-3 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors',
+              'flex items-center gap-3 text-sm font-semibold transition-colors',
+              pathname.startsWith('/library')
+                ? 'text-text-primary'
+                : 'text-text-secondary hover:text-text-primary',
               !sidebarOpen && 'justify-center',
             )}
             aria-label="Your Library"
           >
             <Library size={24} aria-hidden="true" />
             {sidebarOpen && <span>Your Library</span>}
-          </button>
+          </Link>
           {sidebarOpen && (
             <button
+              onClick={() => void handleCreatePlaylist()}
               className="rounded-full p-1 text-text-secondary hover:text-text-primary transition-colors"
               aria-label="Create playlist"
             >
@@ -87,11 +108,12 @@ export function Sidebar() {
         <div className="flex-1 overflow-y-auto">
           {sidebarOpen && (
             <>
+              {/* Liked Songs */}
               <Link
                 href="/library/liked-songs"
                 className={cn(
                   'flex items-center gap-3 rounded px-3 py-2 text-sm transition-colors',
-                  pathname.startsWith('/library/liked-songs')
+                  pathname === '/library/liked-songs'
                     ? 'text-text-primary'
                     : 'text-text-secondary hover:text-text-primary',
                 )}
@@ -104,6 +126,48 @@ export function Sidebar() {
                   <p className="truncate text-xs text-text-secondary">Playlist</p>
                 </div>
               </Link>
+
+              {/* User playlists */}
+              {playlists.map((playlist) => (
+                <div key={playlist.id} className="group flex items-center gap-3 rounded px-3 py-2">
+                  <Link
+                    href={`/playlist/${playlist.id}`}
+                    className={cn(
+                      'flex flex-1 items-center gap-3 min-w-0 text-sm transition-colors',
+                      pathname === `/playlist/${playlist.id}`
+                        ? 'text-text-primary'
+                        : 'text-text-secondary hover:text-text-primary',
+                    )}
+                  >
+                    <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded">
+                      {playlist.cover_url ? (
+                        <Image
+                          src={playlist.cover_url}
+                          alt={playlist.name}
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-bg-press">
+                          <Music size={16} className="text-text-subdued" aria-hidden="true" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-text-primary">{playlist.name}</p>
+                      <p className="truncate text-xs text-text-secondary">
+                        Playlist • {playlist.total_tracks} songs
+                      </p>
+                    </div>
+                  </Link>
+                  <button
+                    aria-label={`Play ${playlist.name}`}
+                    onClick={() => void playPlaylist(playlist.id)}
+                    className="hidden rounded-full p-1 text-text-secondary transition-colors hover:text-text-primary group-hover:block"
+                  />
+                </div>
+              ))}
             </>
           )}
         </div>

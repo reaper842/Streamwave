@@ -4,10 +4,12 @@ import { MainContent } from '@/components/layout/MainContent'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { useUIStore } from '@/stores/ui'
+import { useLibraryStore } from '@/stores/library'
 import { useEffect } from 'react'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { setSidebarOpen } = useUIStore()
+  const fetchLibrary = useLibraryStore((s) => s.fetchLibrary)
 
   // Responsive sidebar: collapse below 1200px, hide below 900px
   useEffect(() => {
@@ -23,6 +25,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [setSidebarOpen])
+
+  // Bootstrap library data once when the authenticated layout mounts
+  useEffect(() => {
+    void fetchLibrary()
+  }, [fetchLibrary])
 
   return (
     <div className="flex h-full flex-col">

@@ -42,6 +42,7 @@ interface PlayerState {
   playTrack: (trackId: string) => Promise<void>
   playAlbum: (albumId: string, startIndex?: number) => Promise<void>
   playPlaylist: (playlistId: string, startIndex?: number) => Promise<void>
+  playFromTrackIds: (trackIds: string[], startIndex?: number) => Promise<void>
   pause: () => void
   resume: () => void
   togglePlayPause: () => void
@@ -157,6 +158,17 @@ export const usePlayerStore = create<PlayerState>()(
           getAudioEngine().play(tracks, startIndex)
         } catch {
           set({ isLoading: false, error: 'Failed to load playlist' })
+        }
+      },
+
+      playFromTrackIds: async (trackIds, startIndex = 0) => {
+        if (trackIds.length === 0) return
+        set({ isLoading: true, error: null })
+        try {
+          const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
+          getAudioEngine().play(tracks, startIndex)
+        } catch {
+          set({ isLoading: false, error: 'Failed to load tracks' })
         }
       },
 
