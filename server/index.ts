@@ -12,6 +12,7 @@ import albumsRoutes from './routes/albums'
 import artistsRoutes from './routes/artists'
 import playlistsRoutes from './routes/playlists'
 import browseRoutes from './routes/browse'
+import libraryRoutes from './routes/library'
 
 const PORT = parseInt(process.env['SERVER_PORT'] ?? '3001', 10)
 const HOST = process.env['SERVER_HOST'] ?? '0.0.0.0'
@@ -60,6 +61,7 @@ async function bootstrap() {
   fastify.register(artistsRoutes, { prefix: '/api/v1/artists' })
   fastify.register(playlistsRoutes, { prefix: '/api/v1/playlists' })
   fastify.register(browseRoutes, { prefix: '/api/v1/browse' })
+  fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
 
   // ── Global error handler ───────────────────────────────────────────────────
 

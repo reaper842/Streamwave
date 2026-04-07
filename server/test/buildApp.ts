@@ -21,6 +21,7 @@ import cookie from '@fastify/cookie'
 import redisPlugin from '../plugins/redis'
 import authPlugin from '../plugins/auth'
 import authRoutes from '../routes/auth'
+import libraryRoutes from '../routes/library'
 
 export async function buildApp() {
   const fastify = Fastify({ logger: false })
@@ -34,6 +35,7 @@ export async function buildApp() {
   await fastify.register(authPlugin)
 
   fastify.register(authRoutes, { prefix: '/api/v1/auth' })
+  fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
 
   // Mirror the global error handler from server/index.ts so response shapes match
   fastify.setErrorHandler((err, _request, reply) => {
