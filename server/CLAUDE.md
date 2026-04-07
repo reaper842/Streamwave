@@ -99,15 +99,20 @@ GET    /api/v1/search?q=&type=
 GET    /api/v1/library/liked-songs
 POST   /api/v1/library/liked-songs/:trackId
 DELETE /api/v1/library/liked-songs/:trackId
-GET    /api/v1/playlists/:id
+GET    /api/v1/library/saved-albums
+POST   /api/v1/library/saved-albums/:albumId
+DELETE /api/v1/library/saved-albums/:albumId
+GET    /api/v1/library/followed-artists
+POST   /api/v1/library/followed-artists/:artistId
+DELETE /api/v1/library/followed-artists/:artistId
+GET    /api/v1/playlists                    → user's own playlists
+GET    /api/v1/playlists/:id               → playlist detail + track list
 POST   /api/v1/playlists
 PATCH  /api/v1/playlists/:id
 DELETE /api/v1/playlists/:id
 POST   /api/v1/playlists/:id/tracks
 DELETE /api/v1/playlists/:id/tracks/:trackId
 PATCH  /api/v1/playlists/:id/tracks/reorder
-GET    /api/v1/browse/genres
-GET    /api/v1/browse/featured
 ```
 
 ---
@@ -145,7 +150,7 @@ GET    /api/v1/browse/featured
 
 ### Current Test Coverage
 
-- 82/82 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs
+- 143/143 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud (positions verified via direct Prisma assertions)
 - 39/39 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit
 - Run server tests: `npm run test` | Run client tests: `npm run test:client`
 
@@ -154,8 +159,9 @@ GET    /api/v1/browse/featured
 ## Key Backend Files
 
 - `server/index.ts` — Fastify entry point, plugin/route registration
-- `server/services/library.ts` — liked songs, saved albums, followed artists, playlist business logic
-- `server/routes/library.ts` — library API routes (/library/liked-songs, etc.)
+- `server/services/library.ts` — liked songs, saved albums, followed artists business logic
+- `server/services/playlists.ts` — playlist CRUD + track position management (`assertOwnership`, `addTrackToPlaylist`, `removeTrackFromPlaylist`, `reorderPlaylistTracks`)
+- `server/routes/library.ts` — library API routes (/library/liked-songs, /saved-albums, /followed-artists)
 - `server/services/content.ts` — content business logic (albums, artists, playlists, browse)
 - `server/routes/albums.ts` — album routes
 - `server/routes/artists.ts` — artist routes (/:id, /:id/albums, /:id/top-tracks)

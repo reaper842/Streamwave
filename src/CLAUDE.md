@@ -121,19 +121,34 @@ Singleton class wrapping Howler.js. Must support:
 - `CardGrid` — responsive 2–6 column CSS grid
 - `PlayButton` — `PlayAlbumButton` / `PlayPlaylistButton` — client components for RSC pages
 
+## Library Components (M5) — `src/components/library/`
+
+- `PlayLikedSongsButton` — play + shuffle buttons for Liked Songs page; calls `usePlayerStore.playFromTrackIds`
+
 ## Server-side Data Layer (RSC only)
 
 - `src/lib/data/content.ts` — Prisma-based data fetchers for RSC pages (no HTTP loopback)
   - `fetchAlbum`, `fetchArtist`, `fetchArtistAlbums`, `fetchArtistTopTracks`, `fetchPlaylist`, `fetchFeatured`, `getStaticGenres`
+- `src/lib/data/library.ts` — RSC fetcher `fetchLikedSongs(userId)` using Prisma directly
 - Import ONLY from Server Components / server actions. Never from `"use client"` components.
+- Liked Songs page calls `auth()` from `src/lib/auth/config.ts` to get `session.user.id`
+
+## Library Store (M5) — `src/stores/library.ts`
+
+- `useLibraryStore` — state: `likedSongIds`/`savedAlbumIds`/`followedArtistIds` (Sets) + `playlists` array
+- `fetchLibrary()` — bootstraps all 4 endpoints in parallel; called in `(main)/layout.tsx` on mount
+- Toggle actions (`toggleLike`, `toggleSaveAlbum`, `toggleFollowArtist`) — optimistic updates with snapshot-before + revert-on-error
+- Store does NOT call toast directly — expose `error` state; components react to it
+- `usePlayerStore.playFromTrackIds(trackIds[], startIndex?)` — plays arbitrary track ID lists (used by liked songs)
 
 ## Key Frontend Files
 
 - `src/app/globals.css` — Tailwind 4 theme + design tokens
 - `src/app/layout.tsx` — Root layout (SessionProvider, ToastProvider, PlaybackBar)
-- `src/app/(main)/layout.tsx` — Authenticated layout (Sidebar + TopBar + MainContent)
+- `src/app/(main)/layout.tsx` — Authenticated layout (Sidebar + TopBar + MainContent); bootstraps `fetchLibrary()`
 - `src/stores/player.ts` — Playback state and queue
 - `src/stores/auth.ts` — Login/register/logout actions + error state
+- `src/stores/library.ts` — Library state (liked/saved/followed + playlists), optimistic CRUD
 - `src/lib/audio/engine.ts` — Howler.js singleton
 - `src/lib/api/client.ts` — Typed fetch wrapper with auth header injection
 - `src/types/content.ts` — Shared content types (TrackSummary, AlbumDetail, PlaylistDetail, etc.)
