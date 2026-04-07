@@ -3,10 +3,15 @@
 import Image from 'next/image'
 import { Heart } from 'lucide-react'
 import { usePlayerStore } from '@/stores/player'
+import { useLibraryStore } from '@/stores/library'
 import { cn } from '@/lib/utils/cn'
 
 export function NowPlaying() {
   const { currentTrack } = usePlayerStore()
+  const { isLiked, toggleLike } = useLibraryStore((s) => ({
+    isLiked: s.isLiked,
+    toggleLike: s.toggleLike,
+  }))
 
   if (!currentTrack) {
     return (
@@ -46,15 +51,22 @@ export function NowPlaying() {
         </p>
       </div>
 
-      {/* Like button — placeholder for M5 library integration */}
+      {/* Like button */}
       <button
+        onClick={() => void toggleLike(currentTrack.id)}
         className={cn(
-          'flex-shrink-0 text-text-secondary hover:text-text-primary transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary rounded',
+          'flex-shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary rounded',
+          isLiked(currentTrack.id)
+            ? 'text-accent-primary hover:text-accent-hover'
+            : 'text-text-secondary hover:text-text-primary',
         )}
-        aria-label="Like track"
+        aria-label={isLiked(currentTrack.id) ? 'Remove from liked songs' : 'Save to liked songs'}
       >
-        <Heart size={16} aria-hidden="true" />
+        <Heart
+          size={16}
+          aria-hidden="true"
+          fill={isLiked(currentTrack.id) ? 'currentColor' : 'none'}
+        />
       </button>
     </div>
   )
