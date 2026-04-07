@@ -235,3 +235,24 @@
 - Library integration tests self-seed: `beforeAll` creates `Artist → Album → Track` via Prisma, `afterAll` tears down in reverse order. Pattern to follow for saved-albums and followed-artists tests too
 - `buildApp.ts` now includes both `authRoutes` and `libraryRoutes` — any new library route file should be registered there too
 - 82/82 tests pass; `npm run build` → 0 errors
+
+---
+
+## Session 14 — 2026-04-07: Sidebar Infinite Render Loop Bug Fix
+
+**Goal:** Fix a runtime crash: "The result of getServerSnapshot should be cached to avoid an infinite loop" + "Maximum update depth exceeded" originating from `Sidebar.tsx`.
+
+**What was done:**
+
+- Fixed `src/components/layout/Sidebar.tsx`: replaced the inline object-literal Zustand selector `useLibraryStore((s) => ({ playlists: s.playlists, createPlaylist: s.createPlaylist }))` with two separate selectors, one per field.
+- Also tightened `useUIStore()` (no-selector call) to `useUIStore((s) => s.sidebarOpen)` to follow the same safe pattern.
+- Cleared the `.next/dev` cache to ensure stale Turbopack artifacts didn't mask the fix.
+- 1 commit: `fix: use individual Zustand selectors in Sidebar to prevent infinite render loop`
+
+**What was NOT completed (carry to next session):**
+
+- M6: Search & Discovery (no work done this session)
+
+**Key technical notes for future sessions:**
+
+- **Zustand inline object selectors are forbidden.** `useStore((s) => ({ a: s.a, b: s.b }))` creates a new object reference on every call. React's `useSyncExternalStore` (used internally by Zustand) compares `getServerSnapshot` results by reference — a new object each time means the snapshot never matches, triggering an infinite re-render loop. Always use one `useStore` call per primitive/stable-reference value.
