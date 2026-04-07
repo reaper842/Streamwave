@@ -22,6 +22,7 @@ import redisPlugin from '../plugins/redis'
 import authPlugin from '../plugins/auth'
 import authRoutes from '../routes/auth'
 import libraryRoutes from '../routes/library'
+import playlistsRoutes from '../routes/playlists'
 
 export async function buildApp() {
   const fastify = Fastify({ logger: false })
@@ -36,6 +37,7 @@ export async function buildApp() {
 
   fastify.register(authRoutes, { prefix: '/api/v1/auth' })
   fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
+  fastify.register(playlistsRoutes, { prefix: '/api/v1/playlists' })
 
   // Mirror the global error handler from server/index.ts so response shapes match
   fastify.setErrorHandler((err, _request, reply) => {
