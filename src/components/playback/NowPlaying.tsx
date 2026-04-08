@@ -8,10 +8,8 @@ import { cn } from '@/lib/utils/cn'
 
 export function NowPlaying() {
   const { currentTrack } = usePlayerStore()
-  const { isLiked, toggleLike } = useLibraryStore((s) => ({
-    isLiked: s.isLiked,
-    toggleLike: s.toggleLike,
-  }))
+  const isLiked = useLibraryStore((s) => s.isLiked)
+  const toggleLike = useLibraryStore((s) => s.toggleLike)
 
   if (!currentTrack) {
     return (

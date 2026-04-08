@@ -23,17 +23,13 @@ interface TrackRowProps {
 export function TrackRow({ track, index, showAlbum = true, className }: TrackRowProps) {
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
 
-  const { playTrack, addToQueue, currentTrack, isPlaying } = usePlayerStore((s) => ({
-    playTrack: s.playTrack,
-    addToQueue: s.addToQueue,
-    currentTrack: s.currentTrack,
-    isPlaying: s.isPlaying,
-  }))
+  const playTrack = usePlayerStore((s) => s.playTrack)
+  const addToQueue = usePlayerStore((s) => s.addToQueue)
+  const currentTrack = usePlayerStore((s) => s.currentTrack)
+  const isPlaying = usePlayerStore((s) => s.isPlaying)
 
-  const { isLiked, toggleLike } = useLibraryStore((s) => ({
-    isLiked: s.isLiked,
-    toggleLike: s.toggleLike,
-  }))
+  const isLiked = useLibraryStore((s) => s.isLiked)
+  const toggleLike = useLibraryStore((s) => s.toggleLike)
 
   const isCurrentTrack = currentTrack?.id === track.id
   const isCurrentlyPlaying = isCurrentTrack && isPlaying

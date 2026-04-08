@@ -8,10 +8,8 @@ interface FollowArtistButtonProps {
 }
 
 export function FollowArtistButton({ artistId }: FollowArtistButtonProps) {
-  const { isFollowing, toggleFollowArtist } = useLibraryStore((s) => ({
-    isFollowing: s.isFollowing,
-    toggleFollowArtist: s.toggleFollowArtist,
-  }))
+  const isFollowing = useLibraryStore((s) => s.isFollowing)
+  const toggleFollowArtist = useLibraryStore((s) => s.toggleFollowArtist)
 
   const following = isFollowing(artistId)
 

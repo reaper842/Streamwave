@@ -8,10 +8,8 @@ interface SaveAlbumButtonProps {
 }
 
 export function SaveAlbumButton({ albumId }: SaveAlbumButtonProps) {
-  const { isSaved, toggleSaveAlbum } = useLibraryStore((s) => ({
-    isSaved: s.isSaved,
-    toggleSaveAlbum: s.toggleSaveAlbum,
-  }))
+  const isSaved = useLibraryStore((s) => s.isSaved)
+  const toggleSaveAlbum = useLibraryStore((s) => s.toggleSaveAlbum)
 
   const saved = isSaved(albumId)
 

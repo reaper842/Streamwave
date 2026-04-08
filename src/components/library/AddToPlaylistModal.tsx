@@ -21,11 +21,9 @@ export function AddToPlaylistModal({
 }: AddToPlaylistModalProps) {
   const [adding, setAdding] = useState<string | null>(null)
 
-  const { playlists, addTrackToPlaylist, createPlaylist } = useLibraryStore((s) => ({
-    playlists: s.playlists,
-    addTrackToPlaylist: s.addTrackToPlaylist,
-    createPlaylist: s.createPlaylist,
-  }))
+  const playlists = useLibraryStore((s) => s.playlists)
+  const addTrackToPlaylist = useLibraryStore((s) => s.addTrackToPlaylist)
+  const createPlaylist = useLibraryStore((s) => s.createPlaylist)
 
   const handleAdd = async (playlistId: string) => {
     setAdding(playlistId)

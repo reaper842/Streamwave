@@ -8,10 +8,8 @@ interface PlayLikedSongsButtonProps {
 }
 
 export function PlayLikedSongsButton({ trackIds }: PlayLikedSongsButtonProps) {
-  const { playFromTrackIds, setShuffle } = usePlayerStore((s) => ({
-    playFromTrackIds: s.playFromTrackIds,
-    setShuffle: s.setShuffle,
-  }))
+  const playFromTrackIds = usePlayerStore((s) => s.playFromTrackIds)
+  const setShuffle = usePlayerStore((s) => s.setShuffle)
 
   const handlePlay = () => {
     setShuffle(false)

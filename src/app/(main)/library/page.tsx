@@ -30,11 +30,9 @@ export default function LibraryPage() {
   const [savedAlbums, setSavedAlbums] = useState<SavedAlbumItem[]>([])
   const [followedArtists, setFollowedArtists] = useState<FollowedArtistItem[]>([])
 
-  const { playlists, fetchPlaylists, createPlaylist } = useLibraryStore((s) => ({
-    playlists: s.playlists,
-    fetchPlaylists: s.fetchPlaylists,
-    createPlaylist: s.createPlaylist,
-  }))
+  const playlists = useLibraryStore((s) => s.playlists)
+  const fetchPlaylists = useLibraryStore((s) => s.fetchPlaylists)
+  const createPlaylist = useLibraryStore((s) => s.createPlaylist)
 
   const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 

@@ -28,7 +28,7 @@ interface PlayPlaylistButtonProps {
 }
 
 export function PlayPlaylistButton({ playlistId }: PlayPlaylistButtonProps) {
-  const { playPlaylist } = usePlayerStore((s) => ({ playPlaylist: s.playPlaylist }))
+  const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 
   const handleClick = () => void playPlaylist(playlistId)
 
