@@ -71,6 +71,14 @@ export async function getTrackStreamUrl(trackId: string): Promise<TrackStreamRes
 
   if (!track) return null
 
+  // Local path — bypass R2 entirely and serve directly from Next.js public/
+  if (track.audio_url.startsWith('/')) {
+    return {
+      streamUrl: track.audio_url,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    }
+  }
+
   const s3 = getS3Client()
   const bucketName = process.env['R2_BUCKET_NAME'] ?? 'streamwave-audio'
 
