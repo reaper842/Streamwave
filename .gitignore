@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local audio files (developer-supplied MP3s, not committed to repo)
+/public/audio/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
