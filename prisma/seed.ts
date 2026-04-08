@@ -62,6 +62,41 @@ const TRACK_TITLE_SUFFIXES = [
   'Star',
 ]
 
+const LOCAL_AUDIO_FILES = [
+  'Cartoon, Jéja - On & On (feat. Daniel Levi)  Electronic Pop  NCS - Copyright Free Music.mp3',
+  'Janji - Heroes Tonight (feat. Johnning)  Progressive House  NCS - Copyright Free Music.mp3',
+  'Warriyo - Mortals (feat. Laura Brehm)  Future Trap  NCS - Copyright Free Music.mp3',
+]
+
+const MY_SONGS: { artist: string; album: string; title: string; genre: string; file: string }[] = [
+  {
+    artist: 'Cartoon, Jéja',
+    album: 'Electronic Pop',
+    title: 'On & On (feat. Daniel Levi)',
+    genre: 'Electronic Pop',
+    file: LOCAL_AUDIO_FILES[0],
+  },
+  {
+    artist: 'Janji',
+    album: 'Progressive House',
+    title: 'Heroes Tonight (feat. Johnning)',
+    genre: 'Progressive House',
+    file: LOCAL_AUDIO_FILES[1],
+  },
+  {
+    artist: 'Warriyo',
+    album: 'Future Trap',
+    title: 'Mortals (feat. Laura Brehm)',
+    genre: 'Future Trap',
+    file: LOCAL_AUDIO_FILES[2],
+  },
+]
+
+function audioUrl(index: number): string {
+  const filename = LOCAL_AUDIO_FILES[index % LOCAL_AUDIO_FILES.length]
+  return `/audio/${filename}`
+}
+
 function trackTitle(prefix: string, suffix: string): string {
   return `${prefix} ${suffix}`
 }
@@ -131,8 +166,7 @@ async function main() {
             artist_id: artist.id,
             album_id: album.id,
             duration_ms: 180000 + Math.floor(Math.random() * 120000),
-            // Placeholder audio URL — replace with real R2 URLs in production
-            audio_url: `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${(k % 16) + 1}.mp3`,
+            audio_url: audioUrl(k),
             track_number: k + 1,
           },
         })
@@ -177,12 +211,65 @@ async function main() {
     console.log(`✅ Created playlist: ${playlist.name} (20 tracks)`)
   }
 
+  // ── Test Playlist (real metadata for local audio files) ───────────────────
+  const mySongTrackIds: string[] = []
+  for (const song of MY_SONGS) {
+    const artist = await prisma.artist.create({
+      data: {
+        name: song.artist,
+        genre: song.genre,
+        bio: null,
+        image_url: `https://picsum.photos/seed/${encodeURIComponent(song.artist)}/400/400`,
+      },
+    })
+    const album = await prisma.album.create({
+      data: {
+        title: song.album,
+        artist_id: artist.id,
+        cover_url: `https://picsum.photos/seed/${encodeURIComponent(song.album)}/300/300`,
+        release_date: new Date('2024-01-01'),
+        genre: song.genre,
+      },
+    })
+    const track = await prisma.track.create({
+      data: {
+        title: song.title,
+        artist_id: artist.id,
+        album_id: album.id,
+        duration_ms: 210000,
+        audio_url: `/audio/${song.file}`,
+        track_number: 1,
+      },
+    })
+    mySongTrackIds.push(track.id)
+  }
+
+  const testPlaylist = await prisma.playlist.create({
+    data: {
+      user_id: demoUser.id,
+      name: 'My 3 Songs',
+      description: 'Local audio test playlist.',
+      is_public: true,
+      cover_url: `https://picsum.photos/seed/testplaylist/300/300`,
+    },
+  })
+  for (let t = 0; t < mySongTrackIds.length; t++) {
+    await prisma.playlistTrack.create({
+      data: {
+        playlist_id: testPlaylist.id,
+        track_id: mySongTrackIds[t],
+        position: t + 1,
+      },
+    })
+  }
+  console.log(`✅ Created playlist: ${testPlaylist.name} (${mySongTrackIds.length} tracks)`)
+
   console.log('\n🎉 Seed complete!')
   console.log(`   Demo login: demo@streamwave.app / Demo1234`)
   console.log(`   Artists: ${ARTISTS.length}`)
   console.log(`   Albums: ${ARTISTS.length * 5}`)
   console.log(`   Tracks: ${ARTISTS.length * 50}`)
-  console.log(`   Playlists: ${playlistDefs.length}`)
+  console.log(`   Playlists: ${playlistDefs.length + 1}`)
 }
 
 main()
