@@ -187,3 +187,4 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 - `tsx` used instead of `ts-node` for running server/seed (handles ESM packages cleanly)
 - Meilisearch JS client v0.57 exports `Meilisearch` (lowercase), not `MeiliSearch`
 - Fastify plugins use `fp()` (fastify-plugin) for decoration visibility across scopes
+- `getTrackStreamUrl` bypasses R2 when `audio_url` starts with `/` — local dev paths served directly from Next.js `public/`. Placeholder R2 env vars (from `.env.example`) would otherwise create a real S3 client and generate broken signed URLs.
