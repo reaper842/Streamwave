@@ -126,7 +126,8 @@ export const usePlayerStore = create<PlayerState>()(
         try {
           const track = await fetchQueueTrack(trackId)
           getAudioEngine().play([track], 0)
-        } catch {
+        } catch (err) {
+          console.error('[PlayerStore] playTrack failed:', err)
           set({ isLoading: false, error: 'Failed to load track' })
         }
       },
@@ -141,7 +142,8 @@ export const usePlayerStore = create<PlayerState>()(
           const trackIds = res.data.tracks.map((t) => t.id)
           const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
           getAudioEngine().play(tracks, startIndex)
-        } catch {
+        } catch (err) {
+          console.error('[PlayerStore] playAlbum failed:', err)
           set({ isLoading: false, error: 'Failed to load album' })
         }
       },
@@ -156,7 +158,8 @@ export const usePlayerStore = create<PlayerState>()(
           const trackIds = res.data.tracks.map((t) => t.id)
           const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
           getAudioEngine().play(tracks, startIndex)
-        } catch {
+        } catch (err) {
+          console.error('[PlayerStore] playPlaylist failed:', err)
           set({ isLoading: false, error: 'Failed to load playlist' })
         }
       },
@@ -167,7 +170,8 @@ export const usePlayerStore = create<PlayerState>()(
         try {
           const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
           getAudioEngine().play(tracks, startIndex)
-        } catch {
+        } catch (err) {
+          console.error('[PlayerStore] playFromTrackIds failed:', err)
           set({ isLoading: false, error: 'Failed to load tracks' })
         }
       },

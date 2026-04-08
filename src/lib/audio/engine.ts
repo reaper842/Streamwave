@@ -120,6 +120,7 @@ class AudioEngine {
       volume: this.state.isMuted ? 0 : this.state.volume,
       onload: () => onLoad?.(),
       onloaderror: (_id, err) => {
+        console.error('[AudioEngine] Failed to load audio:', url, err)
         if (this.retryCount < MAX_RETRIES) {
           this.retryCount++
           howl.load()
