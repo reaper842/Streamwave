@@ -6,17 +6,21 @@ import { useUIStore } from '@/stores/ui'
 import { ChevronLeft, ChevronRight, Menu, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { SearchInput } from '@/components/search/SearchInput'
 
 export function TopBar() {
   const router = useRouter()
+  const pathname = usePathname()
   const { toggleSidebar } = useUIStore()
   const { data: session } = useSession()
   const { logout } = useAuthStore()
   const [scrolled, setScrolled] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const isSearchRoute = pathname.startsWith('/search')
 
   // Detect scroll inside main content to transition background
   useEffect(() => {
@@ -50,7 +54,7 @@ export function TopBar() {
       )}
     >
       {/* Left: hamburger + back/forward */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         <button
           className="rounded-full p-2 text-text-secondary hover:text-text-primary transition-colors lg:hidden"
           onClick={toggleSidebar}
@@ -73,6 +77,13 @@ export function TopBar() {
           <ChevronRight size={20} aria-hidden="true" />
         </button>
       </div>
+
+      {/* Center: search input (only on /search routes) */}
+      {isSearchRoute && (
+        <div className="mx-4 flex-1 flex justify-center">
+          <SearchInput autoFocus />
+        </div>
+      )}
 
       {/* Right: user profile */}
       <div ref={dropdownRef} className="relative">
