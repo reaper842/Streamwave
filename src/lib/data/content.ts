@@ -5,10 +5,10 @@ import type {
   AlbumSummary,
   ArtistDetail,
   FeaturedResponse,
-  GenreCard,
   PlaylistDetail,
   TrackSummary,
 } from '@/types/content'
+export { getStaticGenres } from '@/lib/utils/genres'
 
 // ── Album ─────────────────────────────────────────────────────────────────────
 
@@ -187,19 +187,35 @@ export async function fetchFeatured(): Promise<FeaturedResponse> {
   }
 }
 
-export function getStaticGenres(): GenreCard[] {
-  return [
-    { label: 'Pop', color: '#e91e8c', slug: 'Pop' },
-    { label: 'Hip-Hop', color: '#e8821a', slug: 'Hip-Hop' },
-    { label: 'Rock', color: '#ba0000', slug: 'Rock' },
-    { label: 'Electronic', color: '#0d73ec', slug: 'Electronic' },
-    { label: 'Jazz', color: '#8d67ab', slug: 'Jazz' },
-    { label: 'Classical', color: '#509bf5', slug: 'Classical' },
-    { label: 'R&B', color: '#1e3264', slug: 'R&B' },
-    { label: 'Country', color: '#477d95', slug: 'Country' },
-    { label: 'Latin', color: '#dc148c', slug: 'Latin' },
-    { label: 'Indie', color: '#148a08', slug: 'Indie' },
-    { label: 'Metal', color: '#7a2929', slug: 'Metal' },
-    { label: 'Soul', color: '#503750', slug: 'Soul' },
-  ]
+// ── Genre browse ──────────────────────────────────────────────────────────────
+
+export async function fetchAlbumsByGenre(genre: string, limit = 20): Promise<AlbumSummary[]> {
+  const albums = await prisma.album.findMany({
+    where: { genre: { equals: genre, mode: 'insensitive' } },
+    take: Math.min(limit, 50),
+    orderBy: { release_date: 'desc' },
+    include: { artist: { select: { id: true, name: true } } },
+  })
+
+  return albums.map((a) => ({
+    id: a.id,
+    title: a.title,
+    cover_url: a.cover_url,
+    release_date: a.release_date ? a.release_date.toISOString() : null,
+    genre: a.genre,
+    artist: { id: a.artist.id, name: a.artist.name },
+  }))
+}
+
+export async function fetchArtistsByGenre(
+  genre: string,
+  limit = 20,
+): Promise<Pick<ArtistDetail, 'id' | 'name' | 'image_url'>[]> {
+  const artists = await prisma.artist.findMany({
+    where: { genre: { equals: genre, mode: 'insensitive' } },
+    take: Math.min(limit, 50),
+    select: { id: true, name: true, image_url: true },
+  })
+
+  return artists
 }
