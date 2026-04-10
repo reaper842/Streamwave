@@ -13,6 +13,8 @@ import artistsRoutes from './routes/artists'
 import playlistsRoutes from './routes/playlists'
 import browseRoutes from './routes/browse'
 import libraryRoutes from './routes/library'
+import searchRoutes from './routes/search'
+import { initializeIndexes } from './services/search-sync'
 
 const PORT = parseInt(process.env['SERVER_PORT'] ?? '3001', 10)
 const HOST = process.env['SERVER_HOST'] ?? '0.0.0.0'
@@ -43,6 +45,9 @@ async function bootstrap() {
   await fastify.register(redisPlugin)
   await fastify.register(meilisearchPlugin)
 
+  // Initialize Meilisearch indexes (idempotent — safe to run on every start)
+  await initializeIndexes(fastify.meili)
+
   // Cross-cutting concerns
   await fastify.register(rateLimitPlugin)
   await fastify.register(authPlugin)
@@ -62,6 +67,7 @@ async function bootstrap() {
   fastify.register(playlistsRoutes, { prefix: '/api/v1/playlists' })
   fastify.register(browseRoutes, { prefix: '/api/v1/browse' })
   fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
+  fastify.register(searchRoutes, { prefix: '/api/v1/search' })
 
   // ── Global error handler ───────────────────────────────────────────────────
 
