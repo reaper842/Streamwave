@@ -256,17 +256,20 @@ export async function fullSync(meili: Meilisearch, prisma: PrismaClient): Promis
 
     if (tracks.length === 0) break
 
-    const docs: TrackDocument[] = tracks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      artist_name: t.artist.name,
-      artist_id: t.artist_id,
-      album_title: t.album.title,
-      album_id: t.album_id,
-      album_cover_url: t.album.cover_url,
-      duration_ms: t.duration_ms,
-      genre: t.album.genre,
-    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const docs: TrackDocument[] = (tracks as any[])
+      .filter((t) => t.album != null && t.artist != null)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        artist_name: t.artist.name,
+        artist_id: t.artist_id,
+        album_title: t.album.title,
+        album_id: t.album_id,
+        album_cover_url: t.album.cover_url,
+        duration_ms: t.duration_ms,
+        genre: t.album.genre,
+      }))
 
     await meili.index(INDEX.TRACKS).addDocuments(docs)
     trackCursor =
