@@ -150,6 +150,17 @@ Singleton class wrapping Howler.js. Must support:
 - Store does NOT call toast directly — expose `error` state; components react to it
 - `usePlayerStore.playFromTrackIds(trackIds[], startIndex?)` — plays arbitrary track ID lists (used by liked songs)
 
+## Search (M6) — `src/stores/search.ts`, `src/components/search/`
+
+- `useSearchStore` — state: `query`, `results`, `searchHistory`, `isLoading`; actions: `search`, `clearResults`, `addToHistory/clearHistory/loadHistory`, `setQuery`
+- `SearchInput` — shown in TopBar only on `/search` routes (via `usePathname`); wires to `useDebounce(300ms)` → `useSearchStore.search`
+- `useDebounce<T>` at `src/hooks/useDebounce.ts`
+- `TopResult` — hero card for best match; play button for non-artist results
+- Search page — no-query: history + genre browse; has-query: TopResult + Songs + horizontal scroll rows (Artists, Albums, Playlists) + empty state
+- Genre page at `(main)/search/genre/[genre]/page.tsx` — RSC, hero banner + artist/album grids
+- `src/lib/utils/genres.ts` — `getStaticGenres()` (client-safe; `src/lib/data/content.ts` re-exports it for RSC)
+- Search types in `src/types/search.ts` — never import server search services from client code
+
 ## Key Frontend Files
 
 - `src/app/globals.css` — Tailwind 4 theme + design tokens

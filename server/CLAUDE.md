@@ -95,7 +95,7 @@ GET    /api/v1/artists/:id/top-tracks    → top N tracks (default 10)
 GET    /api/v1/playlists/:id             → playlist detail + track list (M4)
 GET    /api/v1/browse/featured           → featured playlists + new releases
 GET    /api/v1/browse/genres             → static genre list with hex colors
-GET    /api/v1/search?q=&type=
+GET    /api/v1/search?q=&type=         → Meilisearch-backed, Redis-cached, auth optional
 GET    /api/v1/library/liked-songs
 POST   /api/v1/library/liked-songs/:trackId
 DELETE /api/v1/library/liked-songs/:trackId
@@ -150,9 +150,10 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 
 ### Current Test Coverage
 
-- 143/143 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud (positions verified via direct Prisma assertions)
-- 39/39 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit
+- 157/157 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud + 14 search
+- 84/84 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit + 29 useLibraryStore unit + 16 useSearchStore unit
 - Run server tests: `npm run test` | Run client tests: `npm run test:client`
+- Search tests require Meilisearch running (`docker compose up -d`) — use `buildSearchApp()` factory
 
 ---
 
@@ -166,6 +167,10 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 - `server/routes/albums.ts` — album routes
 - `server/routes/artists.ts` — artist routes (/:id, /:id/albums, /:id/top-tracks)
 - `server/routes/playlists.ts` — playlist routes
+- `server/routes/search.ts` — search route (GET /api/v1/search, no auth required)
+- `server/services/search-sync.ts` — Meilisearch index init, per-entity sync helpers, `fullSync`
+- `server/services/search.ts` — search business logic (Redis cache + Meilisearch fan-out)
+- `server/scripts/sync-search.ts` — standalone full-sync CLI script
 - `server/routes/browse.ts` — browse routes (featured, genres)
 - `server/services/auth.ts` — All auth business logic (register, login, tokens, password reset)
 - `server/plugins/auth.ts` — JWT verification plugin (dual-verify: custom JWT + NextAuth cookie)
