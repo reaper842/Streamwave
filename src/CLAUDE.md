@@ -117,7 +117,7 @@ Singleton class wrapping Howler.js. Must support:
 
 - `AlbumCard` / `ArtistCard` / `PlaylistCard` — card components with hover play button + right-click ContextMenu
 - `TrackRow` + `TrackListHeader` — track row with album art, links, duration, three-dot context menu
-- `TrackList` — header + list of TrackRows
+- `TrackList` — header + list of TrackRows; accepts optional `emptyMessage?: string` to show an empty state instead of a bare header
 - `CardGrid` — responsive 2–6 column CSS grid
 - `PlayButton` — `PlayAlbumButton` / `PlayPlaylistButton` — client components for RSC pages
 
@@ -161,10 +161,33 @@ Singleton class wrapping Howler.js. Must support:
 - `src/lib/utils/genres.ts` — `getStaticGenres()` (client-safe; `src/lib/data/content.ts` re-exports it for RSC)
 - Search types in `src/types/search.ts` — never import server search services from client code
 
+## Polish & Responsive (M7)
+
+### Loading States
+
+- `src/app/(main)/loading.tsx` — Home skeleton: greeting + 2 card grid sections + genre tiles
+- `src/app/(main)/album/[id]/loading.tsx` — Album skeleton: 232×232 hero + track rows
+- `src/app/(main)/artist/[id]/loading.tsx` — Artist skeleton: hero banner + track rows + album cards
+- `src/app/(main)/playlist/[id]/loading.tsx` — Playlist skeleton: 232×232 hero + track rows
+- All use Next.js `loading.tsx` convention (automatic Suspense — no manual wrapping needed)
+
+### Error / Empty States
+
+- `src/app/(main)/error.tsx` — Client error boundary for (main) routes; "Try again" calls Next.js `reset()`
+- `src/app/not-found.tsx` — Global 404 page with back-to-home link
+- `TrackList` `emptyMessage` prop — pass when an empty list is semantically meaningful (playlist pages); omit for albums (empty album tracks = data error)
+
+### Mobile Layout (< 640px / `sm` breakpoint)
+
+- `src/components/playback/MiniPlayer.tsx` — Album art + title + play/pause; returns null when no track. Fixed at `bottom-14` (above tab nav)
+- `src/components/layout/MobileNavBar.tsx` — Home/Search/Library tabs; fixed `bottom-0`; hidden on `sm:hidden`
+- `src/components/layout/PlaybackBar.tsx` — Full bar `hidden sm:block` at `bottom-0`; mini player `sm:hidden` at `bottom-14`
+- Content padding: `pb-[112px] sm:pb-[90px]` — 56px mini + 56px tab nav on mobile, 90px bar on desktop
+
 ## Key Frontend Files
 
 - `src/app/globals.css` — Tailwind 4 theme + design tokens
-- `src/app/layout.tsx` — Root layout (SessionProvider, ToastProvider, PlaybackBar)
+- `src/app/layout.tsx` — Root layout (SessionProvider, ToastProvider, PlaybackBar, MobileNavBar)
 - `src/app/(main)/layout.tsx` — Authenticated layout (Sidebar + TopBar + MainContent); bootstraps `fetchLibrary()`
 - `src/stores/player.ts` — Playback state and queue
 - `src/stores/auth.ts` — Login/register/logout actions + error state
