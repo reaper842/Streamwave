@@ -14,10 +14,22 @@ import {
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
+// Strip HTML tags from user-supplied text (defense-in-depth against stored XSS)
+const safeText = (min: number, max: number) =>
+  z
+    .string()
+    .transform((s) =>
+      s
+        .trim()
+        .replace(/<[^>]*>/g, '')
+        .trim(),
+    )
+    .pipe(z.string().min(min, `Must be at least ${min} character(s)`).max(max))
+
 const RegisterBody = z.object({
   email: z.email(),
   password: z.string().min(1),
-  displayName: z.string().min(1).max(50),
+  displayName: safeText(1, 50),
 })
 
 const LoginBody = z.object({

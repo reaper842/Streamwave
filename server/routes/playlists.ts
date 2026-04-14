@@ -12,6 +12,19 @@ import {
 } from '../services/playlists'
 import { requireUser } from '../plugins/auth'
 
+// Strip HTML tags from user-supplied text (defense-in-depth against stored XSS).
+// Also trims leading/trailing whitespace before and after stripping.
+const safeText = (min: number, max: number) =>
+  z
+    .string()
+    .transform((s) =>
+      s
+        .trim()
+        .replace(/<[^>]*>/g, '')
+        .trim(),
+    )
+    .pipe(z.string().min(min).max(max))
+
 const playlistsRoutes: FastifyPluginAsync = async (fastify) => {
   // ── Read (public/authenticated) ──────────────────────────────────────────────
 
@@ -42,8 +55,8 @@ const playlistsRoutes: FastifyPluginAsync = async (fastify) => {
     const user = requireUser(request)
 
     const bodySchema = z.object({
-      name: z.string().min(1).max(100),
-      description: z.string().max(300).optional(),
+      name: safeText(1, 100),
+      description: safeText(0, 300).optional(),
     })
 
     const parsed = bodySchema.safeParse(request.body)
@@ -73,8 +86,8 @@ const playlistsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const bodySchema = z.object({
-      name: z.string().min(1).max(100).optional(),
-      description: z.string().max(300).nullable().optional(),
+      name: safeText(1, 100).optional(),
+      description: safeText(0, 300).nullable().optional(),
       cover_url: z.url().nullable().optional(),
       is_public: z.boolean().optional(),
     })
