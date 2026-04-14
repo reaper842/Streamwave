@@ -77,7 +77,7 @@ export default async function PlaylistPage({ params }: Props) {
 
       {/* Track list */}
       <div className="px-6 pb-8">
-        <TrackList tracks={playlist.tracks} showAlbum />
+        <TrackList tracks={playlist.tracks} showAlbum emptyMessage="This playlist is empty" />
       </div>
     </div>
   )
