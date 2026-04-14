@@ -150,10 +150,11 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 
 ### Current Test Coverage
 
-- 157/157 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud + 14 search
+- 185/185 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud + 14 search + 28 content (tracks/albums/artists/browse)
 - 84/84 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit + 29 useLibraryStore unit + 16 useSearchStore unit
 - Run server tests: `npm run test` | Run client tests: `npm run test:client`
 - Search tests require Meilisearch running (`docker compose up -d`) — use `buildSearchApp()` factory
+- Content tests (`content.test.ts`) use `buildApp()` factory (includes tracks/albums/artists/browse routes since Session 19)
 
 ---
 
@@ -193,3 +194,5 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 - Meilisearch JS client v0.57 exports `Meilisearch` (lowercase), not `MeiliSearch`
 - Fastify plugins use `fp()` (fastify-plugin) for decoration visibility across scopes
 - `getTrackStreamUrl` bypasses R2 when `audio_url` starts with `/` — local dev paths served directly from Next.js `public/`. Placeholder R2 env vars (from `.env.example`) would otherwise create a real S3 client and generate broken signed URLs.
+- **Input sanitization pattern**: use `safeText(min, max)` — a `z.string().transform(trim+stripHTML).pipe(z.string().min().max())` chain. This runs transformation BEFORE constraints, so whitespace-only or HTML-only strings correctly fail `min`. Both `auth.ts` and `playlists.ts` define their own copy of this helper (no shared file — keeps each route self-contained).
+- **Security headers**: `server/index.ts` `onSend` hook applies `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` to every API response. CSP and other browser-facing headers are in `next.config.ts` `headers()` (applies only to the Next.js origin, not Fastify directly).
