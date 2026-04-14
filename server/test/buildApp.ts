@@ -20,6 +20,10 @@ import redisPlugin from '../plugins/redis'
 import meilisearchPlugin from '../plugins/meilisearch'
 import authPlugin from '../plugins/auth'
 import authRoutes from '../routes/auth'
+import tracksRoutes from '../routes/tracks'
+import albumsRoutes from '../routes/albums'
+import artistsRoutes from '../routes/artists'
+import browseRoutes from '../routes/browse'
 import libraryRoutes from '../routes/library'
 import playlistsRoutes from '../routes/playlists'
 import searchRoutes from '../routes/search'
@@ -36,6 +40,10 @@ export async function buildApp() {
   await fastify.register(authPlugin)
 
   fastify.register(authRoutes, { prefix: '/api/v1/auth' })
+  fastify.register(tracksRoutes, { prefix: '/api/v1/tracks' })
+  fastify.register(albumsRoutes, { prefix: '/api/v1/albums' })
+  fastify.register(artistsRoutes, { prefix: '/api/v1/artists' })
+  fastify.register(browseRoutes, { prefix: '/api/v1/browse' })
   fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
   fastify.register(playlistsRoutes, { prefix: '/api/v1/playlists' })
 
