@@ -1,4 +1,5 @@
 import { PlaybackBar } from '@/components/layout/PlaybackBar'
+import { MobileNavBar } from '@/components/layout/MobileNavBar'
 import { AudioEngineProvider } from '@/components/providers/AudioEngineProvider'
 import { KeyboardShortcutsProvider } from '@/components/providers/KeyboardShortcutsProvider'
 import { SessionProvider } from '@/components/providers/SessionProvider'
@@ -31,6 +32,7 @@ export default function RootLayout({
               <ToastProvider>
                 {children}
                 <PlaybackBar />
+                <MobileNavBar />
               </ToastProvider>
             </KeyboardShortcutsProvider>
           </AudioEngineProvider>

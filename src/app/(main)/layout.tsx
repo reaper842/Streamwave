@@ -34,7 +34,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex h-full flex-col">
       {/* Main area: sidebar + scrollable content, above the playback bar */}
-      <div className="flex flex-1 overflow-hidden pb-[90px]">
+      {/* Mobile: pb-[112px] = 56px mini-player + 56px tab nav. Desktop: pb-[90px] full bar */}
+      <div className="flex flex-1 overflow-hidden pb-[112px] sm:pb-[90px]">
         {/* Sidebar — hidden on < 900px, shown via toggle */}
         <div className="hidden md:flex h-full">
           <Sidebar />
