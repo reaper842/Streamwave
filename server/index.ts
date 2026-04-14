@@ -52,6 +52,20 @@ async function bootstrap() {
   await fastify.register(rateLimitPlugin)
   await fastify.register(authPlugin)
 
+  // ── Security headers ───────────────────────────────────────────────────────
+
+  // Add security headers to every API response
+  fastify.addHook('onSend', (_request, reply, _payload, done) => {
+    // Prevent MIME-type sniffing
+    reply.header('X-Content-Type-Options', 'nosniff')
+    // Don't cache authenticated API responses by default;
+    // individual routes can override with a more permissive directive
+    reply.header('Cache-Control', 'no-store')
+    // Prevent clickjacking from Fastify's own HTML error pages
+    reply.header('X-Frame-Options', 'DENY')
+    done()
+  })
+
   // ── Health check ───────────────────────────────────────────────────────────
 
   fastify.get('/health', async () => {
