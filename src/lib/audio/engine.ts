@@ -345,18 +345,15 @@ class AudioEngine {
     this.prevVolume = clamped
     this.howl?.volume(clamped)
     this.setState({ volume: clamped, isMuted: false })
-    Howler.volume(clamped)
   }
 
   toggleMute() {
     if (this.state.isMuted) {
       this.howl?.volume(this.prevVolume)
-      Howler.volume(this.prevVolume)
       this.setState({ isMuted: false, volume: this.prevVolume })
     } else {
       this.prevVolume = this.state.volume
       this.howl?.volume(0)
-      Howler.volume(0)
       this.setState({ isMuted: true })
     }
   }
