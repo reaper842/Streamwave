@@ -28,12 +28,11 @@ export function TrackRow({ track, index, showAlbum = true, className }: TrackRow
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
 
-  const isLiked = useLibraryStore((s) => s.isLiked)
+  const liked = useLibraryStore((s) => s.likedSongIds.has(track.id))
   const toggleLike = useLibraryStore((s) => s.toggleLike)
 
   const isCurrentTrack = currentTrack?.id === track.id
   const isCurrentlyPlaying = isCurrentTrack && isPlaying
-  const liked = isLiked(track.id)
 
   const handlePlay = () => void playTrack(track.id)
 

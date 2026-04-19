@@ -7,8 +7,8 @@ import { useLibraryStore } from '@/stores/library'
 import { cn } from '@/lib/utils/cn'
 
 export function NowPlaying() {
-  const { currentTrack } = usePlayerStore()
-  const isLiked = useLibraryStore((s) => s.isLiked)
+  const currentTrack = usePlayerStore((s) => s.currentTrack)
+  const liked = useLibraryStore((s) => (currentTrack ? s.likedSongIds.has(currentTrack.id) : false))
   const toggleLike = useLibraryStore((s) => s.toggleLike)
 
   if (!currentTrack) {
@@ -54,17 +54,13 @@ export function NowPlaying() {
         onClick={() => void toggleLike(currentTrack.id)}
         className={cn(
           'flex-shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary rounded',
-          isLiked(currentTrack.id)
+          liked
             ? 'text-accent-primary hover:text-accent-hover'
             : 'text-text-secondary hover:text-text-primary',
         )}
-        aria-label={isLiked(currentTrack.id) ? 'Remove from liked songs' : 'Save to liked songs'}
+        aria-label={liked ? 'Remove from liked songs' : 'Save to liked songs'}
       >
-        <Heart
-          size={16}
-          aria-hidden="true"
-          fill={isLiked(currentTrack.id) ? 'currentColor' : 'none'}
-        />
+        <Heart size={16} aria-hidden="true" fill={liked ? 'currentColor' : 'none'} />
       </button>
     </div>
   )

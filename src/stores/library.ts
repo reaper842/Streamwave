@@ -126,8 +126,8 @@ export const useLibraryStore = create<LibraryState>()(
           } else {
             await apiClient.post(`/library/liked-songs/${trackId}`)
           }
-        } catch {
-          // Rollback
+        } catch (err) {
+          console.error('[LibraryStore] toggleLike failed:', err)
           set({ likedSongIds: new Set(likedSongIds) })
         }
       },
