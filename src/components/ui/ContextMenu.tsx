@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils/cn'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 interface ContextMenuItem {
   label: string
@@ -119,16 +119,46 @@ export function ContextMenuTrigger({ items, className }: ContextMenuTriggerProps
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setPos({ x: rect.right, y: rect.bottom })
+    // Right-align the menu to the button's right edge, pre-clamped so it never starts
+    // off-screen. 192px = min-w-48 (the menu's minimum width). useLayoutEffect below
+    // fine-tunes based on the actual rendered width.
+    const x = Math.max(8, rect.right - 192)
+    setPos({ x, y: rect.bottom })
     setOpen(true)
   }
 
   useEffect(() => {
     if (!open) return
     const close = () => setOpen(false)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
     document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('click', close)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [open])
+
+  // Fine-tune position using the actual rendered dimensions. Direct DOM mutation is
+  // intentional here — it corrects for content wider than the 192px estimate without
+  // calling setState (which would cause an extra render cycle caught by the lint rule).
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current) return
+    const menu = menuRef.current
+    const { width, height } = menu.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    let x = pos.x
+    let y = pos.y
+    if (x + width > vw - 8) x = vw - width - 8
+    if (x < 8) x = 8
+    if (y + height > vh - 8) y = vh - height - 8
+    if (y < 8) y = 8
+    menu.style.left = `${x}px`
+    menu.style.top = `${y}px`
+  }, [open, pos.x, pos.y])
 
   return (
     <>
