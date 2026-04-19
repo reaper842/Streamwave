@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './load-env' // Must be first — populates process.env before any other module reads it
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
