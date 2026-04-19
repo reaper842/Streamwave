@@ -181,6 +181,7 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 - `server/lib/prisma.ts` — Prisma singleton with PrismaPg adapter
 - `server/routes/auth.ts` — All 6 auth route handlers
 - `server/test/buildApp.ts` — Test Fastify factory (no rate-limit plugin)
+- `server/load-env.ts` — **First import** in `server/index.ts`; loads `.env` then `.env.local`. Must stay first or modules that read `process.env` at eval time (prisma, auth plugin) will see `undefined`.
 
 ---
 
@@ -196,3 +197,4 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 - `getTrackStreamUrl` bypasses R2 when `audio_url` starts with `/` — local dev paths served directly from Next.js `public/`. Placeholder R2 env vars (from `.env.example`) would otherwise create a real S3 client and generate broken signed URLs.
 - **Input sanitization pattern**: use `safeText(min, max)` — a `z.string().transform(trim+stripHTML).pipe(z.string().min().max())` chain. This runs transformation BEFORE constraints, so whitespace-only or HTML-only strings correctly fail `min`. Both `auth.ts` and `playlists.ts` define their own copy of this helper (no shared file — keeps each route self-contained).
 - **Security headers**: `server/index.ts` `onSend` hook applies `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` to every API response. CSP and other browser-facing headers are in `next.config.ts` `headers()` (applies only to the Next.js origin, not Fastify directly).
+- **ESM import hoisting**: `tsx` runs TypeScript as ESM. All static `import` declarations are hoisted and evaluated before any module body code. `server/load-env.ts` MUST be the first import in `server/index.ts`. Never interleave `loadEnv()` calls between `import` statements — they will run too late.

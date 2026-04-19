@@ -256,3 +256,70 @@
 **Key technical notes for future sessions:**
 
 - **Zustand inline object selectors are forbidden.** `useStore((s) => ({ a: s.a, b: s.b }))` creates a new object reference on every call. React's `useSyncExternalStore` (used internally by Zustand) compares `getServerSnapshot` results by reference — a new object each time means the snapshot never matches, triggering an infinite re-render loop. Always use one `useStore` call per primitive/stable-reference value.
+
+---
+
+## Session 20 — 2026-04-19: Bug Fix — Volume Slider, Like Button, Context Menu Overflow
+
+**Goal:** Fix three user-reported runtime bugs.
+
+**What was done:**
+
+- **Volume slider silent (Bug 1):** Removed `Howler.volume(v)` calls from `AudioEngine.setVolume` and `toggleMute` in `src/lib/audio/engine.ts`. In Howler.js html5 mode `audioNode.volume = Howler._volume × howl._volume`; calling both at 0.5 squared the result to 0.25. Individual howl volume is now the sole control.
+- **Like button no visual update (Bug 2a):** Changed `useLibraryStore((s) => s.isLiked)` selectors in `TrackRow.tsx` and `NowPlaying.tsx` to return a boolean directly: `(s) => s.likedSongIds.has(track.id)`. A function-reference selector is always the same reference → Zustand never triggers re-render when the Set changes.
+- **Like button API failure (Bug 2b):** `server/plugins/auth.ts` reads `NEXTAUTH_SECRET` at module evaluation time. The dotenv loading in `server/index.ts` ran too late (interleaved between import statements, but ESM hoists all imports before module body code). Fixed by restructuring env loading (see Session 21).
+- **Context menu renders off-screen (Bug 3):** Changed `useEffect` viewport clamping in `src/components/ui/ContextMenu.tsx` to `useLayoutEffect` + initial `visibility: hidden` style revealed only after position correction. `useEffect` fires after browser paint causing visible flash at wrong coordinates.
+
+**Files changed:**
+
+- `src/lib/audio/engine.ts` — removed Howler global volume calls
+- `src/components/content/TrackRow.tsx` — boolean likedSongIds selector
+- `src/components/playback/NowPlaying.tsx` — boolean likedSongIds selector + fixed bare usePlayerStore() call
+- `src/stores/library.ts` — added `console.error` to `toggleLike` catch for diagnosability
+- `src/components/ui/ContextMenu.tsx` — useLayoutEffect + visibility:hidden clamping
+- `server/index.ts` — dotenv restructure attempt (superseded by Session 21)
+
+**Key technical notes for future sessions:**
+
+- **Howler volume multiplication:** In html5 mode, `audioNode.volume = Howler._volume × howl._volume`. Only set `howl.volume()`, not `Howler.volume()`.
+- **Zustand selector + function values:** Selectors returning a function reference never change (same reference on every call) → Zustand's `Object.is` check always passes → no re-render. Always compute the final primitive inside the selector.
+- **useLayoutEffect for measure-then-reveal:** Render element hidden (`visibility: hidden`), measure in `useLayoutEffect`, correct position, set visible — all before browser paint.
+
+---
+
+## Session 21 — 2026-04-19: Bug Fix — Fastify Server Not Starting (ESM Import Hoisting)
+
+**Goal:** Fix `TypeError: Failed to fetch` when clicking any play button (playPlaylist / playAlbum / playTrack all fail with network error).
+
+**Root cause:** In ESM (which `tsx` uses), ALL static `import` statements are hoisted and evaluated before the importing module's body runs. `server/index.ts` had `loadEnv()` calls between import statements:
+
+```typescript
+import { config as loadEnv } from 'dotenv'
+loadEnv() // ← runs AFTER all imports evaluate
+loadEnv({ path: '.env.local', override: true }) // ← same
+import Fastify from 'fastify'
+import authPlugin from './plugins/auth' // reads NEXTAUTH_SECRET at eval time
+// ...
+```
+
+`server/plugins/auth.ts` reads `NEXTAUTH_SECRET` at module evaluation time. `server/lib/prisma.ts` calls `createPrismaClient()` at module evaluation time (which reads `DATABASE_URL`). Both execute before `loadEnv()` runs, so they get `undefined` → Prisma throws "DATABASE_URL not set" → server crashes on startup → every `fetch()` to localhost:3001 fails with ERR_CONNECTION_REFUSED → `TypeError: Failed to fetch`.
+
+**Fix:** Created `server/load-env.ts` — a side-effect-only module that is the **first** import in `server/index.ts`. In ESM, modules evaluate depth-first in import order. Because `load-env.ts` has no local dependencies and is listed first, its body (the dotenv `config()` calls) runs before any other module's evaluation code.
+
+**What was done:**
+
+- Created `server/load-env.ts` — calls `config()` + `config({ path: '.env.local', override: true })`
+- Updated `server/index.ts` — replaced interleaved dotenv calls with `import './load-env'` as first import
+- Build: 0 errors (`tsc -p tsconfig.server.json --noEmit` + `npm run build`)
+- Tests: 185/185 server + 84/84 client still passing
+
+**Files changed:**
+
+- `server/load-env.ts` — new file
+- `server/index.ts` — first import is now `./load-env`
+
+**Key technical notes for future sessions:**
+
+- **ESM import hoisting is non-negotiable:** No code between import statements runs before ALL imports have evaluated. If any imported module reads `process.env` at eval time, dotenv MUST be loaded via a first-position side-effect import, not inline calls.
+- **`server/load-env.ts` must remain the first import** in `server/index.ts`. Never add imports before it.
+- `server/plugins/auth.ts` still reads `AUTH_SECRET = process.env['NEXTAUTH_SECRET']` at module level — this now works because `load-env.ts` evaluates first and populates the env before auth.ts loads.
