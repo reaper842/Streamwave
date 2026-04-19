@@ -61,7 +61,7 @@ The app has four fixed layout regions. Violating this structure breaks Spotify p
 ### UI Patterns
 
 - **Hover-to-reveal play buttons** on cards/track rows (opacity transition, 200ms)
-- **Custom context menus** — never browser native. Background `#282828`, hover `#3E3E3E`, 14px text, 36px row height
+- **Custom context menus** — never browser native. Background `#282828`, hover `#3E3E3E`, 14px text, 36px row height. `ContextMenuTrigger` pre-clamps opening position to `Math.max(8, rect.right - 192)` in the click handler; `useLayoutEffect` fine-tunes with actual measured width via DOM mutation (not setState — blocked by `react-hooks/set-state-in-effect` ESLint rule).
 - **Loading skeletons** — shimmer placeholders matching exact dimensions of replaced component
 - **Toast notifications** — bottom-center, 3-second auto-dismiss, dark bg + white text
 - **Optimistic UI** for like/unlike, add-to-playlist, queue operations. Rollback on failure

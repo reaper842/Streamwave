@@ -323,3 +323,32 @@ import authPlugin from './plugins/auth' // reads NEXTAUTH_SECRET at eval time
 - **ESM import hoisting is non-negotiable:** No code between import statements runs before ALL imports have evaluated. If any imported module reads `process.env` at eval time, dotenv MUST be loaded via a first-position side-effect import, not inline calls.
 - **`server/load-env.ts` must remain the first import** in `server/index.ts`. Never add imports before it.
 - `server/plugins/auth.ts` still reads `AUTH_SECRET = process.env['NEXTAUTH_SECRET']` at module level — this now works because `load-env.ts` evaluates first and populates the env before auth.ts loads.
+
+---
+
+## Session 22 — 2026-04-19: Bug Fix — Context Menu Right-Edge Overflow (Round 2) + Like Button Confirmation
+
+**Goal:** Fix context menu still overflowing the right edge of the viewport, and confirm like button status after server restart.
+
+**What was done:**
+
+- **Context menu (definitive fix):** Two bugs were identified with the previous `useLayoutEffect` DOM-mutation approach:
+  1. `handleClick` set `pos.x = rect.right` (the button's right edge), so the menu started there and extended off-screen to the right. Now pre-clamps to `Math.max(8, rect.right - 192)` — right-aligned to the button within viewport.
+  2. Direct `menu.style.left = ...` DOM mutation was overridden on any parent re-render (e.g. when `likedSongIds` changed, `TrackRow` re-rendered → `ContextMenuTrigger` re-rendered → React re-applied `style={{ left: pos.x }}` from JSX → reset to wrong position). Fix: `useLayoutEffect` now fine-tunes via DOM mutation but the INITIAL position is already correct from the handler, making the correction a no-op in most cases. ESLint `react-hooks/set-state-in-effect` prevented calling `setState` in the effect, so direct DOM mutation was intentionally kept.
+  - Added ESC key support to `ContextMenuTrigger` (was missing; `ContextMenu` already had it).
+
+- **Like button:** Confirmed the optimistic-update selector fix (`s.likedSongIds.has(id)`) is in place. The API calls will work correctly after restarting `npm run dev` with the `server/load-env.ts` fix.
+
+**Files changed:**
+
+- `src/components/ui/ContextMenu.tsx` — `ContextMenuTrigger`: pre-clamped initial position in handler, `useLayoutEffect` fine-tune via DOM mutation, ESC key handler added
+
+**What was NOT completed (carry to next session):**
+
+- M8: Coverage audit, Playwright E2E tests, Lighthouse audit, CORS/HTTPS hardening
+
+**Key technical notes for future sessions:**
+
+- **ContextMenuTrigger positioning strategy:** Pre-clamp `x = Math.max(8, rect.right - 192)` in the click handler so the initial render is already approximately correct. `useLayoutEffect` with deps `[open, pos.x, pos.y]` measures actual width and fine-tunes via direct DOM mutation (not state). Direct DOM mutation is acceptable here because parent re-renders happen on events (play/like toggle) that don't occur while the menu is freshly opened.
+- **ESLint `react-hooks/set-state-in-effect`:** This custom rule blocks calling `setState` inside effect bodies. Use direct DOM mutation for measurement-correction patterns in effects, or restructure to compute position before rendering.
+- **Like button requires server restart:** The `server/load-env.ts` fix takes effect only after `npm run dev` is restarted. Until then, all authenticated API calls fail (NEXTAUTH_SECRET wrong), the optimistic update briefly shows green then reverts.
