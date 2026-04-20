@@ -352,3 +352,40 @@ import authPlugin from './plugins/auth' // reads NEXTAUTH_SECRET at eval time
 - **ContextMenuTrigger positioning strategy:** Pre-clamp `x = Math.max(8, rect.right - 192)` in the click handler so the initial render is already approximately correct. `useLayoutEffect` with deps `[open, pos.x, pos.y]` measures actual width and fine-tunes via direct DOM mutation (not state). Direct DOM mutation is acceptable here because parent re-renders happen on events (play/like toggle) that don't occur while the menu is freshly opened.
 - **ESLint `react-hooks/set-state-in-effect`:** This custom rule blocks calling `setState` inside effect bodies. Use direct DOM mutation for measurement-correction patterns in effects, or restructure to compute position before rendering.
 - **Like button requires server restart:** The `server/load-env.ts` fix takes effect only after `npm run dev` is restarted. Until then, all authenticated API calls fail (NEXTAUTH_SECRET wrong), the optimistic update briefly shows green then reverts.
+
+---
+
+## Session 23 — 2026-04-20: Bug Fix (Like button — Content-Type with empty body)
+
+**Goal:** Fix `ApiRequestError: Body cannot be empty when content-type is set to 'application/json'` thrown when clicking the like button.
+
+**What was done:**
+
+**Root cause:** `src/lib/api/client.ts` `request()` function unconditionally set `Content-Type: application/json` on every request, regardless of whether a body was present. `apiClient.post('/library/liked-songs/:trackId')` (no body — trackId in URL) sent the header but no JSON body. Fastify's JSON body parser rejects this with 400.
+
+**Fix — `src/lib/api/client.ts`:**
+
+```typescript
+// BEFORE (always set Content-Type)
+const headers: Record<string, string> = {
+  'Content-Type': 'application/json',
+  ...(init.headers as Record<string, string>),
+}
+
+// AFTER (only when body is present)
+const headers: Record<string, string> = {
+  ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+  ...(init.headers as Record<string, string>),
+}
+```
+
+**Fix — `src/lib/audio/__tests__/engine.test.ts`:** Removed stale assertion `expect(mockHowlerVolume).toHaveBeenCalledWith(0)` from the `toggleMute` test. The Session 20 volume bugfix removed `Howler.volume()` calls from `toggleMute`; the test was never updated, causing 1 failing test.
+
+**What was NOT completed (carry to next session):**
+
+- M8: Coverage audit, Playwright E2E tests, Lighthouse audit, CORS/HTTPS hardening
+
+**Key technical notes for future sessions:**
+
+- **`apiClient` Content-Type rule:** `Content-Type: application/json` is only set when `body !== undefined`. All `POST`/`DELETE` calls that pass the entity ID in the URL (liked-songs, save-album, follow-artist) have no body — calling them without a body argument is correct and will NOT send the header.
+- **84/84 client tests pass** | **`npm run build` → 0 errors**

@@ -193,6 +193,6 @@ Singleton class wrapping Howler.js. Must support:
 - `src/stores/auth.ts` — Login/register/logout actions + error state
 - `src/stores/library.ts` — Library state (liked/saved/followed + playlists), optimistic CRUD
 - `src/lib/audio/engine.ts` — Howler.js singleton
-- `src/lib/api/client.ts` — Typed fetch wrapper with auth header injection
+- `src/lib/api/client.ts` — Typed fetch wrapper with auth header injection. **`Content-Type: application/json` is only set when `body !== undefined`** — never send it with an empty body or Fastify returns 400.
 - `src/types/content.ts` — Shared content types (TrackSummary, AlbumDetail, PlaylistDetail, etc.)
 - `src/proxy.ts` — Next.js 16 route guard (replaces middleware.ts)
