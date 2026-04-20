@@ -30,7 +30,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<A
   const { body, token, ...init } = options
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     ...(init.headers as Record<string, string>),
   }
 
