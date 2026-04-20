@@ -1,5 +1,5 @@
 import './load-env' // Must be first — populates process.env before any other module reads it
-import Fastify from 'fastify'
+import Fastify, { type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import redisPlugin from './plugins/redis'
@@ -29,6 +29,29 @@ async function bootstrap() {
           : undefined,
     },
   })
+
+  // Browsers sometimes send Content-Type: application/json with an empty body on
+  // bodyless POST/DELETE requests (fetch + credentials: 'include'). Fastify's
+  // default parser throws FST_ERR_CTP_EMPTY_JSON_BODY in that case. Override it
+  // to treat an empty JSON body as null instead of an error.
+  fastify.removeContentTypeParser('application/json')
+  fastify.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req: FastifyRequest, body: string, done: (err: Error | null, body?: unknown) => void) => {
+      if (!body || body.trim() === '') {
+        done(null, null)
+        return
+      }
+      try {
+        done(null, JSON.parse(body))
+      } catch (err) {
+        const error = err as Error & { statusCode?: number }
+        error.statusCode = 400
+        done(error)
+      }
+    },
+  )
 
   // ── Plugins ────────────────────────────────────────────────────────────────
 

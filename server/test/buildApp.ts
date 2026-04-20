@@ -14,7 +14,7 @@
  *   const res = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: {...} })
  *   await app.close()
  */
-import Fastify from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import cookie from '@fastify/cookie'
 import redisPlugin from '../plugins/redis'
 import meilisearchPlugin from '../plugins/meilisearch'
@@ -28,8 +28,30 @@ import libraryRoutes from '../routes/library'
 import playlistsRoutes from '../routes/playlists'
 import searchRoutes from '../routes/search'
 
+function addLenientJsonParser(fastify: FastifyInstance) {
+  fastify.removeContentTypeParser('application/json')
+  fastify.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req: FastifyRequest, body: string, done: (err: Error | null, body?: unknown) => void) => {
+      if (!body || body.trim() === '') {
+        done(null, null)
+        return
+      }
+      try {
+        done(null, JSON.parse(body))
+      } catch (err) {
+        const error = err as Error & { statusCode?: number }
+        error.statusCode = 400
+        done(error)
+      }
+    },
+  )
+}
+
 export async function buildApp() {
   const fastify = Fastify({ logger: false })
+  addLenientJsonParser(fastify)
 
   await fastify.register(cookie, {
     secret: process.env['NEXTAUTH_SECRET'] ?? 'test-cookie-secret',
