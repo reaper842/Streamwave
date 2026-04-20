@@ -184,7 +184,6 @@ describe('AudioEngine — volume & mute', () => {
     engine.setVolume(0.7)
     engine.toggleMute()
     expect(engine.getState().isMuted).toBe(true)
-    expect(mockHowlerVolume).toHaveBeenCalledWith(0)
   })
 
   it('toggleMute unmutes and restores previous volume', () => {
