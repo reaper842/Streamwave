@@ -1,6 +1,8 @@
 'use client'
 
 import { MainContent } from '@/components/layout/MainContent'
+import { MobileNavBar } from '@/components/layout/MobileNavBar'
+import { PlaybackBar } from '@/components/layout/PlaybackBar'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { useUIStore } from '@/stores/ui'
@@ -47,6 +49,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <MainContent>{children}</MainContent>
         </div>
       </div>
+
+      {/* Playback controls — only in authenticated app shell, not on auth pages */}
+      <PlaybackBar />
+      <MobileNavBar />
     </div>
   )
 }
