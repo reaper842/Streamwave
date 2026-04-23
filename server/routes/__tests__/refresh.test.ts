@@ -58,6 +58,9 @@ let validRefreshToken: string
 beforeAll(async () => {
   app = await buildApp()
 
+  // Clear any stale failed-login counter from previous test runs to prevent 429s.
+  await app.redis.del('auth_fail:127.0.0.1')
+
   // Register then capture the refresh token
   const registerRes = await app.inject({
     method: 'POST',

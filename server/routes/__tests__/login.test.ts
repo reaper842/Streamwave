@@ -44,6 +44,9 @@ let app: FastifyInstance
 beforeAll(async () => {
   app = await buildApp()
 
+  // Clear any stale failed-login counter from previous test runs to prevent 429s.
+  await app.redis.del('auth_fail:127.0.0.1')
+
   // Create the shared demo user by going through the register endpoint
   // so the password is hashed with the same BCRYPT_COST as tests use.
   await app.inject({
