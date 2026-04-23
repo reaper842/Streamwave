@@ -58,6 +58,10 @@ async function bootstrap() {
   await fastify.register(cors, {
     origin: process.env['NEXTAUTH_URL'] ?? 'http://localhost:3000',
     credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 
   await fastify.register(cookie, {
