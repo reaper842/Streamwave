@@ -41,7 +41,10 @@ export function NowPlaying() {
 
       {/* Track info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-text-primary leading-tight">
+        <p
+          data-testid="now-playing-title"
+          className="truncate text-sm font-semibold text-text-primary leading-tight"
+        >
           {currentTrack.title}
         </p>
         <p className="truncate text-xs text-text-secondary leading-tight mt-0.5">

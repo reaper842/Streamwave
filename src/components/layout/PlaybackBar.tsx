@@ -10,6 +10,7 @@ export function PlaybackBar() {
     <>
       {/* Full playback bar — visible on sm+ (≥640px) */}
       <footer
+        data-testid="playback-bar"
         className="fixed bottom-0 left-0 right-0 z-40 hidden h-[90px] border-t border-border-default bg-bg-elevated px-4 sm:block"
         aria-label="Playback controls"
       >
