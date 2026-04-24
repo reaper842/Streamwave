@@ -1,4 +1,7 @@
 import type { NextConfig } from 'next'
+import bundleAnalyzer from '@next/bundle-analyzer'
+
+const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env['ANALYZE'] === 'true' })
 
 // Security headers applied to every response from Next.js.
 // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/headers
@@ -23,6 +26,16 @@ const securityHeaders = [
     key: 'Permissions-Policy',
     value: 'camera=(), microphone=(), geolocation=(), payment=()',
   },
+  // HSTS — instruct browsers to only connect via HTTPS for 2 years (production only)
+  // Omitted in development so localhost dev over HTTP is not permanently broken.
+  ...(process.env['NODE_ENV'] === 'production'
+    ? [
+        {
+          key: 'Strict-Transport-Security',
+          value: 'max-age=63072000; includeSubDomains; preload',
+        },
+      ]
+    : []),
   // Content Security Policy
   // - default-src 'self': only load resources from the same origin by default
   // - script-src: allow Next.js inline scripts ('unsafe-inline' needed for RSC/hydration)
@@ -85,4 +98,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withBundleAnalyzer(nextConfig)
