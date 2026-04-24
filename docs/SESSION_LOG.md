@@ -389,3 +389,91 @@ const headers: Record<string, string> = {
 
 - **`apiClient` Content-Type rule:** `Content-Type: application/json` is only set when `body !== undefined`. All `POST`/`DELETE` calls that pass the entity ID in the URL (liked-songs, save-album, follow-artist) have no body — calling them without a body argument is correct and will NOT send the header.
 - **84/84 client tests pass** | **`npm run build` → 0 errors**
+
+---
+
+## Session 27 — 2026-04-23: M8 Testing Coverage (AudioEngine playback, Meilisearch sync, Playwright E2E)
+
+**Goal:** Complete the M8 Testing & Quality Assurance milestone by filling coverage gaps in AudioEngine, usePlayerStore, Meilisearch sync, seed verification, and Playwright E2E flows.
+
+**What was done:**
+
+### 1. AudioEngine playback tests — `src/lib/audio/__tests__/engine.playback.test.ts` (26 new tests)
+
+The existing engine test file only covered queue management, volume, shuffle/repeat, and subscribe — it had zero coverage for `play()`, `pause()`, `resume()`, `next()`, `previous()`, `handleTrackEnd()`, `seek()`, or error handling/retry.
+
+Created a new test file using the `vi.hoisted()` + `capturedInstances` instance-capture pattern:
+
+```typescript
+const { capturedInstances, mockHowlPlay, ... } = vi.hoisted(() => ({
+  capturedInstances: [] as unknown[],
+  mockHowlPlay: vi.fn(),
+  ...
+}))
+
+vi.mock('howler', () => {
+  class MockHowl {
+    constructor(opts) {
+      this._onload = opts.onload ?? null
+      this._onend = opts.onend ?? null
+      capturedInstances.push(this)  // capture each instance
+    }
+    _triggerLoad() { this._onload?.() }
+    _triggerEnd() { this._onend?.() }
+    _triggerLoadError(err) { this._onloaderror?.(null, err) }
+  }
+  return { Howl: MockHowl, Howler: { volume: vi.fn() } }
+})
+```
+
+Test groups: play() loading (4 tests), pause() and resume() (7), next() and previous() (5), handleTrackEnd via \_triggerEnd (4), error handling/retry (2), seek() (2).
+
+### 2. usePlayerStore coverage tests — `src/stores/__tests__/player.test.ts` (+8 tests)
+
+Added 3 new `describe` blocks covering `playAlbum`, `playPlaylist`, and `playFromTrackIds`. Each mocks `apiClient.get` to return fixture responses in sequence and verifies that `engine.play()` is called with the correct tracks and `startIndex`.
+
+### 3. Meilisearch sync integration tests — `server/services/__tests__/search-sync.test.ts` (10 new tests)
+
+Used `buildSearchApp()` to get a Fastify instance with `app.meili` client. Tests seed DB fixtures in `beforeAll`, call sync helpers directly (`syncArtist`, `syncAlbum`, `syncTrack`, `syncPlaylist`, `safeDelete`), and verify with `app.meili.index(INDEX.ARTISTS).getDocument(id)`. 500ms wait after each call for Meilisearch indexing tasks to complete.
+
+Covers: add/remove artist, add/skip non-existent album, add/skip non-existent track, add public playlist, skip private playlist, `safeDelete` removes document, `safeDelete` is no-op for non-existent.
+
+### 4. Seed verification tests — `server/services/__tests__/seed.test.ts` (15 new tests)
+
+Read-only tests verifying the seed script produces correct data. `beforeAll` checks demo user exists (throws with helpful message if seed not run). Tests cover:
+
+- Entity counts: artists ≥ 10, albums ≥ 50, tracks ≥ 500, playlists ≥ 5
+- Relationship integrity: albums have non-empty artist_id, tracks have artist + album, all albums have tracks, all artists have albums
+- Data quality: artists have genre, no duplicate track titles within same album, bcrypt hash format (`$2a$` / `$2b$`)
+
+### 5. Playwright E2E tests — 3 new spec files (17 tests total)
+
+- `e2e/playback.spec.ts` — playback bar hidden on login, clicking play starts playback, play/pause toggles, navigation doesn't stop audio, Space key toggles, album page play button loads queue
+- `e2e/search.spec.ts` — genre browse grid visible, typing shows results, clearing returns to browse, genre card navigation, track rows in search results
+- `e2e/library.spec.ts` — library accessible from sidebar, tabs visible (Playlists/Artists/Albums), create playlist button, liked songs page, like button optimistic toggle, follow artist button toggle
+
+### 6. Build and test results
+
+- `npm run test` (server + integration): **210 tests passing** (14 test files)
+- `npm run test:client` (client): **118 tests passing** (5 test files)
+- `npm run build`: **0 errors** (14 routes generated)
+
+**Key technical gotchas:**
+
+- **AudioEngine singleton state persistence across test groups:** `clearQueue()` does NOT reset `repeatMode` or `shuffleEnabled` — these persist on the module-level singleton within the same Vitest file. The `handleTrackEnd` group's `beforeEach` must explicitly call `engine.setRepeat('off')` and `engine.setShuffle(false)` after `clearQueue()`, or earlier tests that call `setRepeat('one')` bleed into later tests.
+
+- **`vi.clearAllMocks()` does not reset `mockReturnValue` implementations.** After `vi.clearAllMocks()`, you must re-call `mockHowlState.mockReturnValue('loading')` or similar if the state mock needs a non-default value for the next test group.
+
+- **Prisma filter syntax for required relations:** `prisma.album.count({ where: { artist: { isNot: null } } })` is a TypeScript error — `null` is not valid for required-relation filters. `prisma.album.count({ where: { artist: { is: undefined } } })` returns all rows (not a meaningful filter). The correct approach is `prisma.album.count({ where: { artist_id: '' } })` (checks the FK column directly) plus a `findMany` spot-check that includes the relation.
+
+- **`capturedInstances` pattern for AudioEngine testing:** Since `buildHowl()` constructs Howl instances internally, tests cannot intercept them without instance capture. The `vi.hoisted()` array is initialized before any module eval, the MockHowl constructor pushes `this`, and tests access `capturedInstances[n]` by index to trigger lifecycle callbacks.
+
+**What was NOT completed (carry to next session):**
+
+- Lighthouse audit (requires running app)
+- Virtual scrolling with `@tanstack/react-virtual` for large track lists
+- Bundle size audit (`@next/bundle-analyzer`)
+- FCP/TTI verification
+- HTTPS production config
+
+**210 server + 118 client tests passing | `npm run build` → 0 errors**
