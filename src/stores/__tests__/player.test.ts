@@ -282,3 +282,162 @@ describe('usePlayerStore — playTrack', () => {
     expect(usePlayerStore.getState().isLoading).toBe(false)
   })
 })
+
+describe('usePlayerStore — playAlbum', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    usePlayerStore.setState({ isLoading: false, error: null })
+  })
+
+  it('fetches album tracks and calls engine.play', async () => {
+    const mockGet = vi.mocked(apiClient.get)
+    // 1st call: album endpoint returns track ids
+    mockGet.mockResolvedValueOnce({ data: { tracks: [{ id: 'ta1' }, { id: 'ta2' }] } })
+    // 2nd + 3rd: track metadata for ta1
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'ta1',
+        title: 'T1',
+        duration_ms: 200_000,
+        track_number: 1,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/ta1.mp3', expiresAt: '' } })
+    // 4th + 5th: track metadata for ta2
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'ta2',
+        title: 'T2',
+        duration_ms: 180_000,
+        track_number: 2,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/ta2.mp3', expiresAt: '' } })
+
+    await usePlayerStore.getState().playAlbum('album-1', 0)
+
+    expect(mockPlay).toHaveBeenCalledTimes(1)
+    const [tracks, startIndex] = mockPlay.mock.calls[0] as [QueueTrack[], number]
+    expect(tracks).toHaveLength(2)
+    expect(tracks[0].id).toBe('ta1')
+    expect(tracks[1].id).toBe('ta2')
+    expect(startIndex).toBe(0)
+  })
+
+  it('uses default startIndex of 0', async () => {
+    const mockGet = vi.mocked(apiClient.get)
+    mockGet.mockResolvedValueOnce({ data: { tracks: [{ id: 'ta1' }] } })
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'ta1',
+        title: 'T1',
+        duration_ms: 200_000,
+        track_number: 1,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/ta1.mp3', expiresAt: '' } })
+
+    await usePlayerStore.getState().playAlbum('album-1')
+
+    const [, startIndex] = mockPlay.mock.calls[0] as [QueueTrack[], number]
+    expect(startIndex).toBe(0)
+  })
+
+  it('sets error on album API failure', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Not found'))
+
+    await usePlayerStore.getState().playAlbum('bad-album')
+
+    expect(usePlayerStore.getState().error).toBe('Failed to load album')
+    expect(usePlayerStore.getState().isLoading).toBe(false)
+  })
+})
+
+describe('usePlayerStore — playPlaylist', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    usePlayerStore.setState({ isLoading: false, error: null })
+  })
+
+  it('fetches playlist tracks and calls engine.play', async () => {
+    const mockGet = vi.mocked(apiClient.get)
+    mockGet.mockResolvedValueOnce({ data: { tracks: [{ id: 'tp1' }] } })
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'tp1',
+        title: 'T1',
+        duration_ms: 200_000,
+        track_number: 1,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/tp1.mp3', expiresAt: '' } })
+
+    await usePlayerStore.getState().playPlaylist('playlist-1', 0)
+
+    expect(mockPlay).toHaveBeenCalledTimes(1)
+    const [tracks] = mockPlay.mock.calls[0] as [QueueTrack[], number]
+    expect(tracks[0].id).toBe('tp1')
+  })
+
+  it('sets error on playlist API failure', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Not found'))
+
+    await usePlayerStore.getState().playPlaylist('bad-playlist')
+
+    expect(usePlayerStore.getState().error).toBe('Failed to load playlist')
+    expect(usePlayerStore.getState().isLoading).toBe(false)
+  })
+})
+
+describe('usePlayerStore — playFromTrackIds', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    usePlayerStore.setState({ isLoading: false, error: null })
+  })
+
+  it('fetches each track and calls engine.play', async () => {
+    const mockGet = vi.mocked(apiClient.get)
+    // For track id1: metadata + stream
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'id1',
+        title: 'T1',
+        duration_ms: 200_000,
+        track_number: 1,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/id1.mp3', expiresAt: '' } })
+
+    await usePlayerStore.getState().playFromTrackIds(['id1'], 0)
+
+    expect(mockPlay).toHaveBeenCalledTimes(1)
+    const [tracks, startIndex] = mockPlay.mock.calls[0] as [QueueTrack[], number]
+    expect(tracks[0].id).toBe('id1')
+    expect(startIndex).toBe(0)
+  })
+
+  it('is a no-op for an empty track list', async () => {
+    await usePlayerStore.getState().playFromTrackIds([])
+    expect(mockPlay).not.toHaveBeenCalled()
+    expect(usePlayerStore.getState().isLoading).toBe(false)
+  })
+
+  it('sets error on API failure', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error'))
+
+    await usePlayerStore.getState().playFromTrackIds(['bad-id'])
+
+    expect(usePlayerStore.getState().error).toBe('Failed to load tracks')
+    expect(usePlayerStore.getState().isLoading).toBe(false)
+  })
+})
