@@ -508,3 +508,64 @@ The Turbopack dev server was in a **stale** state (shown as "Next.js 16.2.2 (sta
 Turbopack's `(stale)` indicator in the Next.js dev overlay means the client JS bundle is out of sync with the server render. When this happens, a hard page refresh won't help — you must delete `.next/` and restart `npm run dev` so both bundles compile fresh from the same source code. Any `data-testid` or other attributes added after the last clean build will cause this until the cache is cleared.
 
 **0 errors | `npm run build` → 0 errors, 14 routes**
+
+---
+
+## Session 30 — 2026-04-24: Bug Fix — Auth ClientFetchError + Turbopack Stale Cache (Recurrence)
+
+**Goal:** Fix two errors shown in the Next.js dev overlay: (1) React hydration mismatch on `PlaybackBar` (same Turbopack stale issue as Session 29), and (2) `Console ClientFetchError: Unexpected token 'I', "Internal S"... is not valid JSON` from the NextAuth `SessionProvider`.
+
+**Error 1 — Hydration mismatch on PlaybackBar (recurrence):**
+
+Same root cause as Session 29. The `.next/` cache had accumulated another stale client bundle. Server rendered `data-testid="playback-bar"` (current code); client JS was compiled before that attribute was added.
+
+Fix: deleted `.next/` directory, ran `npm run build` → 0 errors. User must restart `npm run dev` to fully resolve.
+
+**Error 2 — Auth ClientFetchError (`Unexpected token 'I', "Internal S"...`):**
+
+Root cause: The `(stale)` Turbopack dev state. When `.next/` was deleted while the dev server was still running, then replaced with a production build via `npm run build`, the still-running dev server tried to handle `GET /api/auth/session` but couldn't reconcile its in-memory module graph with the incompatible production artifacts on disk. The server returned plain-text "Internal Server Error" instead of JSON; `SessionProvider.fetchData` parsed the response and threw `ClientFetchError: Unexpected token 'I'`.
+
+**Investigation findings:**
+
+- `NEXTAUTH_SECRET` IS set in `.env.local` with a real value
+- `next-auth@5.0.0-beta.30` `lib/env.js` `setEnvDefaults` confirms it reads `process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET` — the secret IS picked up
+- Auth config (`src/lib/auth/config.ts`) and `proxy.ts` are both correct
+- No code bug in auth route; 500 is caused purely by the confused dev server state
+
+**Code fix — `src/lib/auth/config.ts`:**
+
+The session callback mutated `session.user.id/displayName/avatarUrl` without a null guard:
+
+```typescript
+// BEFORE
+async session({ session, token }) {
+  session.user.id = (token.userId as string) ?? ''        // throws if session.user is null
+  session.user.displayName = (token.displayName as string) ?? ''
+  session.user.avatarUrl = (token.avatarUrl as string | null) ?? null
+  return session
+},
+
+// AFTER
+async session({ session, token }) {
+  if (session.user) {                                      // defensive guard
+    session.user.id = (token.userId as string) ?? ''
+    session.user.displayName = (token.displayName as string) ?? ''
+    session.user.avatarUrl = (token.avatarUrl as string | null) ?? null
+  }
+  return session
+},
+```
+
+In some NextAuth v5 beta edge cases (corrupted cookies, malformed JWT format), `session.user` can be null/undefined, causing `TypeError: Cannot set properties of null (setting 'id')` → unhandled exception → 500 "Internal Server Error". The null guard prevents the crash and returns an empty session instead.
+
+**What was NOT completed:**
+
+- M9 Deployment & Launch tasks (not started — out of scope for this bug-fix session)
+
+**Key technical notes for future sessions:**
+
+- **Restarting `npm run dev` is the correct fix for `(stale)` errors.** Deleting `.next/` alone is not sufficient if the dev server is still running — the in-memory Turbopack state is separate from the disk cache. Always stop the dev server FIRST, then delete `.next/`, then restart.
+- **Never run `npm run build` to fix a stale dev-server issue while the dev server is still running.** This replaces `.next/` with incompatible production artifacts, which makes the confused dev server even more broken for requests it tries to handle.
+- **`session.user` can be null in NextAuth v5 beta JWT strategy** in edge cases (corrupted/expired cookies, malformed JWTs). Always add `if (session.user)` guard before mutating it.
+
+**Result:** `npm run build` → 0 errors | no code changes beyond defensive null guard.
