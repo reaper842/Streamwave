@@ -477,3 +477,34 @@ Read-only tests verifying the seed script produces correct data. `beforeAll` che
 - HTTPS production config
 
 **210 server + 118 client tests passing | `npm run build` → 0 errors**
+
+---
+
+## Session 29 — Troubleshooting: React Hydration Error on PlaybackBar
+
+**Goal:** Fix React hydration mismatch error shown in browser dev overlay for `PlaybackBar.tsx`.
+
+**Error observed:**
+
+```
+A tree hydrated but some attributes of the server rendered HTML didn't match the client properties.
+- data-testid="playback-bar"   ← server had it, client bundle didn't
+@ PlaybackBar.tsx (10:5)
+```
+
+**Root cause:**
+The Turbopack dev server was in a **stale** state (shown as "Next.js 16.2.2 (stale)" in the error overlay). The `data-testid="playback-bar"` attribute was added to `PlaybackBar.tsx` in Session 28 (M8 finish). The server-side render had the new code, but the compiled client JS bundle in `.next/cache` still had the old version without `data-testid`. This mismatch caused React hydration to fail.
+
+**What was done:**
+
+- Confirmed `PlaybackBar.tsx` code is correct — `data-testid="playback-bar"` is unconditionally present in JSX
+- Audited all `PlaybackBar` children (`NowPlaying`, `TransportControls`, `VolumeSlider`, `ProgressBar`, `MiniPlayer`) for other hydration risks — none found
+- Confirmed no `typeof window` guards, no `localStorage` access at init time, no `Math.random()`/`Date.now()` in rendered output, no Zustand `persist()` middleware active
+- Deleted `.next/` cache directory entirely to force Turbopack to recompile both server and client bundles from the same source
+- Ran `npx tsc --noEmit` → 0 errors
+- Ran `npm run build` → 0 errors, 14 routes generated
+
+**Key gotcha:**
+Turbopack's `(stale)` indicator in the Next.js dev overlay means the client JS bundle is out of sync with the server render. When this happens, a hard page refresh won't help — you must delete `.next/` and restart `npm run dev` so both bundles compile fresh from the same source code. Any `data-testid` or other attributes added after the last clean build will cause this until the cache is cleared.
+
+**0 errors | `npm run build` → 0 errors, 14 routes**
