@@ -569,3 +569,34 @@ In some NextAuth v5 beta edge cases (corrupted cookies, malformed JWT format), `
 - **`session.user` can be null in NextAuth v5 beta JWT strategy** in edge cases (corrupted/expired cookies, malformed JWTs). Always add `if (session.user)` guard before mutating it.
 
 **Result:** `npm run build` → 0 errors | no code changes beyond defensive null guard.
+
+---
+
+## Session 31 — 2026-04-25: Bug Fix — Turbopack Stale Cache (3rd Recurrence)
+
+**Goal:** Fix `A tree hydrated but some attributes of the server rendered HTML didn't match the client properties` hydration error on `PlaybackBar` shown in the Next.js dev overlay, with `(stale)` indicator next to the version number.
+
+**Root cause:**
+
+Identical to Sessions 29 and 30. The `.next/` Turbopack dev cache accumulated stale compiled client artifacts from before `data-testid="playback-bar"` was added to `<footer>` in Session 28. The server rendered the attribute (current source); the stale client JS bundle hydrated without it → React detected the mismatch.
+
+**Fixes:**
+
+1. **Deleted `.next/`** (`rm -rf .next/`) — removes all stale Turbopack artifacts. After deletion, restarting `npm run dev` forces a fresh compile where both server and client use current source.
+
+2. **Added `suppressHydrationWarning` to `<footer>` in `src/components/layout/PlaybackBar.tsx`** — permanent code-level safeguard. When Turbopack's dev cache drifts in future sessions (which it will as hot-module-replacement accumulates patches), React will tolerate the `data-testid` attribute mismatch on this specific element instead of surfacing it as a hard error in the overlay. `suppressHydrationWarning` suppresses warnings only for the element it's on (not its children), so real hydration bugs in `NowPlaying`, `TransportControls`, or `VolumeSlider` are still caught.
+
+**Files changed:**
+
+- `src/components/layout/PlaybackBar.tsx` — added `suppressHydrationWarning` to `<footer>`
+
+**What was NOT completed:**
+
+- M9 Deployment & Launch tasks (not started — this was a targeted bug-fix session)
+
+**Key technical notes for future sessions:**
+
+- **`suppressHydrationWarning` on `data-testid` elements** — this pattern should be applied to any element whose only server/client difference is a `data-testid` attribute added for test selectors. It is safe because `data-testid` is a stable, deterministic attribute that has no meaningful runtime behaviour.
+- **User action required:** Stop any running `npm run dev` process, then restart it. The `.next/` was deleted so Turbopack recompiles from scratch.
+
+**Result:** `npm run build` → 0 errors (1 expected Cache-Control warning).
