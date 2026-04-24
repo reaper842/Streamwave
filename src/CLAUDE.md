@@ -195,4 +195,21 @@ Singleton class wrapping Howler.js. Must support:
 - `src/lib/audio/engine.ts` — Howler.js singleton
 - `src/lib/api/client.ts` — Typed fetch wrapper with auth header injection. **`Content-Type: application/json` is only set when `body !== undefined`** — never send it with an empty body or Fastify returns 400.
 - `src/types/content.ts` — Shared content types (TrackSummary, AlbumDetail, PlaylistDetail, etc.)
-- `src/proxy.ts` — Next.js 16 route guard (replaces middleware.ts)
+- `src/proxy.ts` — Next.js 16 route guard (replaces middleware.ts); also enforces HTTP→HTTPS redirect in production via `x-forwarded-proto` check
+
+## Dynamic Imports (M8)
+
+Modal components that are only rendered on user action are lazy-loaded via `next/dynamic({ ssr: false })` to exclude them from the initial JS bundle. The pattern for named exports:
+
+```typescript
+const MyModal = dynamic(() => import('@/components/...').then((m) => ({ default: m.MyModal })), {
+  ssr: false,
+})
+```
+
+Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlaylistDialog` (PlaylistControls).
+
+## Test Selectors (data-testid)
+
+- `[data-testid="playback-bar"]` — `<footer>` in `PlaybackBar.tsx` (full 90px bar)
+- `[data-testid="now-playing-title"]` — `<p>` in `NowPlaying.tsx` (current track title)
