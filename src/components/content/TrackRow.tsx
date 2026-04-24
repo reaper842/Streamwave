@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { Heart, Play } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -9,8 +10,15 @@ import { formatDuration } from '@/lib/utils/formatDuration'
 import { usePlayerStore } from '@/stores/player'
 import { useLibraryStore } from '@/stores/library'
 import { ContextMenuTrigger } from '@/components/ui/ContextMenu'
-import { AddToPlaylistModal } from '@/components/library/AddToPlaylistModal'
 import type { TrackSummary } from '@/types/content'
+
+const AddToPlaylistModal = dynamic(
+  () =>
+    import('@/components/library/AddToPlaylistModal').then((m) => ({
+      default: m.AddToPlaylistModal,
+    })),
+  { ssr: false },
+)
 
 interface TrackRowProps {
   track: TrackSummary

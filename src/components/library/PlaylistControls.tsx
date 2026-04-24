@@ -1,11 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import { Play } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { MoreHorizontal, Pencil, Trash2, Play } from 'lucide-react'
 import { usePlayerStore } from '@/stores/player'
-import { EditPlaylistModal } from '@/components/library/EditPlaylistModal'
-import { DeletePlaylistDialog } from '@/components/library/DeletePlaylistDialog'
+
+const EditPlaylistModal = dynamic(
+  () =>
+    import('@/components/library/EditPlaylistModal').then((m) => ({
+      default: m.EditPlaylistModal,
+    })),
+  { ssr: false },
+)
+
+const DeletePlaylistDialog = dynamic(
+  () =>
+    import('@/components/library/DeletePlaylistDialog').then((m) => ({
+      default: m.DeletePlaylistDialog,
+    })),
+  { ssr: false },
+)
 
 interface PlaylistControlsProps {
   playlistId: string
