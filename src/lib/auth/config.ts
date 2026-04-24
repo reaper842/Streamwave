@@ -134,9 +134,11 @@ export const authConfig: NextAuthConfig = {
      * Copies custom fields from the JWT into the session.
      */
     async session({ session, token }) {
-      session.user.id = (token.userId as string) ?? ''
-      session.user.displayName = (token.displayName as string) ?? ''
-      session.user.avatarUrl = (token.avatarUrl as string | null) ?? null
+      if (session.user) {
+        session.user.id = (token.userId as string) ?? ''
+        session.user.displayName = (token.displayName as string) ?? ''
+        session.user.avatarUrl = (token.avatarUrl as string | null) ?? null
+      }
       return session
     },
   },
