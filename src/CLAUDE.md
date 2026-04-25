@@ -220,3 +220,7 @@ Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlayli
 
 - `[data-testid="playback-bar"]` — `<footer>` in `PlaybackBar.tsx` (full 90px bar)
 - `[data-testid="now-playing-title"]` — `<p>` in `NowPlaying.tsx` (current track title)
+
+## Account Tab Bar
+
+`AccountTabBar` at `src/components/layout/AccountTabBar.tsx` — client component shared by `/profile` and `/settings` pages. Uses `usePathname()` to highlight the active tab. Pill-style tabs matching Library page style. Must remain a `'use client'` component; can be safely rendered from Profile RSC because server components can render client components in App Router.
