@@ -640,3 +640,32 @@ Both menu item `<button>` elements in `TopBar.tsx` only called `setDropdownOpen(
 - `server/index.ts` — registered usersRoutes
 
 **Result:** `npm run build` → 0 errors. Both `/profile` and `/settings` appear in the route table.
+
+---
+
+## Session 33 — 2026-04-25: Bug Fix — Profile & Settings Navigation Still Not Working
+
+**Goal:** Investigate and fix "nothing happens" when clicking Profile or Settings in the TopBar dropdown, reported as still broken despite Session 32's fix.
+
+**Root cause (dual):**
+
+1. **Stale Turbopack dev cache** — The `.next/turbopack/` directory contained compiled client JavaScript bundles from before Session 32's changes. The source files had the correct `router.push` calls, but the dev server was serving the old compiled bundle that pre-dated them. Turbopack's incremental cache can drift when multiple dev-server restarts accumulate without a full cache clear. The user was clicking the Profile/Settings buttons but the old JS executed a no-op (just `setDropdownOpen(false)`) with no navigation.
+
+2. **Settings page `useState` initialization** — `src/app/(main)/settings/page.tsx` initialized the display-name input with `useState(currentName)` where `currentName = session?.user?.displayName ?? ''`. Since `useSession()` returns `{ data: null }` on first render (async session load), `currentName` was `''` and `displayName` state was initialized to `''`. React does NOT re-initialize `useState` when its argument changes on subsequent renders — so even after the session loaded with the real display name, the input field remained empty. This is a separate UI bug from the navigation issue.
+
+**Fixes:**
+
+1. **Deleted `.next/`** — Cleared all stale Turbopack compiled artifacts (both production build output and the Turbopack incremental dev cache). The next `npm run dev` compiles from scratch, ensuring the client bundle contains Session 32's `router.push` calls.
+
+2. **`src/app/(main)/settings/page.tsx`** — Fixed `useState` initialization:
+   - `useState(currentName)` → `useState('')` (explicit empty initial value)
+   - Added `useEffect` that fires when `session` changes: `if (session?.user) setDisplayName(session.user.displayName ?? session.user.name ?? '')`
+   - This correctly populates the display name field once the NextAuth session resolves client-side.
+
+**Files changed:**
+
+- `src/app/(main)/settings/page.tsx` — fixed useState initialization; added useEffect to sync display name from session
+
+**User action required:** Stop any running `npm run dev` process, then restart it. `.next/` was deleted so Turbopack will recompile fresh from source.
+
+**Result:** `npm run build` → 0 errors (1 expected Cache-Control warning).
