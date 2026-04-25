@@ -3,6 +3,12 @@ import { Skeleton } from '@/components/ui/Skeleton'
 export default function SettingsLoading() {
   return (
     <div>
+      {/* Tab bar skeleton */}
+      <div className="flex gap-2 px-6 pt-5 pb-1">
+        <Skeleton className="h-7 w-20 rounded-full" />
+        <Skeleton className="h-7 w-20 rounded-full" />
+      </div>
+
       {/* Header skeleton */}
       <div className="border-b border-border-default px-6 pb-6 pt-8">
         <Skeleton className="h-8 w-28 rounded" />

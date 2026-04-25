@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { User, Heart, Music, Users, Disc, Settings, ChevronRight } from 'lucide-react'
 import { auth } from '@/lib/auth/config'
 import { fetchUserProfileStats } from '@/lib/data/profile'
+import { AccountTabBar } from '@/components/layout/AccountTabBar'
 
 interface StatCardProps {
   label: string
@@ -84,6 +85,8 @@ export default async function ProfilePage() {
 
   return (
     <div>
+      <AccountTabBar />
+
       {/* ── Hero ── */}
       <div className="relative overflow-hidden bg-gradient-to-b from-indigo-900 to-bg-base">
         {/* Layered gradient for depth */}

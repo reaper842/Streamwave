@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { User, ChevronRight, LogOut, Lock, Bell } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { apiClient } from '@/lib/api/client'
+import { AccountTabBar } from '@/components/layout/AccountTabBar'
 
 export default function SettingsPage() {
   const { data: session, update } = useSession()
@@ -46,6 +47,8 @@ export default function SettingsPage() {
 
   return (
     <div>
+      <AccountTabBar />
+
       {/* ── Page Header ── */}
       <div className="border-b border-border-default px-6 pb-6 pt-8">
         <h1 className="text-2xl font-bold text-text-primary">Settings</h1>

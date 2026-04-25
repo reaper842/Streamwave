@@ -3,6 +3,12 @@ import { Skeleton } from '@/components/ui/Skeleton'
 export default function ProfileLoading() {
   return (
     <div>
+      {/* Tab bar skeleton */}
+      <div className="flex gap-2 px-6 pt-5 pb-1">
+        <Skeleton className="h-7 w-20 rounded-full" />
+        <Skeleton className="h-7 w-20 rounded-full" />
+      </div>
+
       {/* Hero skeleton */}
       <div className="bg-gradient-to-b from-indigo-900 to-bg-base px-6 pb-8 pt-16">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
