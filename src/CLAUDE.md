@@ -143,10 +143,11 @@ Singleton class wrapping Howler.js. Must support:
 - Import ONLY from Server Components / server actions. Never from `"use client"` components.
 - Liked Songs page calls `auth()` from `src/lib/auth/config.ts` to get `session.user.id`
 
-## Profile & Settings Pages (Session 32)
+## Profile & Settings Pages (Sessions 32, 34)
 
-- `src/app/(main)/profile/page.tsx` — RSC. Calls `auth()` + `fetchUserProfileStats()`. Shows avatar, display name, email, join date, 4-stat grid, and collection quick-links.
-- `src/app/(main)/settings/page.tsx` — Client Component. Display name update form → `PATCH /api/v1/users/me` via `apiClient.patch('/users/me', ...)`. Uses `useSession().update()` to refresh the NextAuth session token after save. Email is read-only.
+- `src/app/(main)/profile/page.tsx` — RSC. Calls `auth()` + `fetchUserProfileStats()`. Gradient hero (indigo/violet layered gradients), large circular avatar, display name + inline stats in hero. Action bar with "Edit Profile" → `/settings`. Stats grid (4 cards with icons + hover chevron). Quick Access links section. Has `loading.tsx` skeleton.
+- `src/app/(main)/settings/page.tsx` — Client Component. Profile summary card at top (avatar + name + "View Profile" link). Account section: email (read-only) + display name (editable, save inline). Privacy & Security: Change Password link → `/reset-password`. Account Actions: Log out with `signOut({ redirectTo: '/login' })`. Has `loading.tsx` skeleton.
+- **TopBar navigation**: Profile and Settings dropdown items use `<Link href>` (NOT `router.push`). `router.push` silently fails when Turbopack bundle is stale; `<Link>` generates a real `<a>` tag that works at the framework level regardless of bundle state.
 
 ## Library Store (M5) — `src/stores/library.ts`
 
