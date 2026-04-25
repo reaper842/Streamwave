@@ -118,14 +118,20 @@ export function TopBar() {
             <button
               role="menuitem"
               className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => setDropdownOpen(false)}
+              onClick={() => {
+                setDropdownOpen(false)
+                router.push('/profile')
+              }}
             >
               Profile
             </button>
             <button
               role="menuitem"
               className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => setDropdownOpen(false)}
+              onClick={() => {
+                setDropdownOpen(false)
+                router.push('/settings')
+              }}
             >
               Settings
             </button>

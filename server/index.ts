@@ -14,6 +14,7 @@ import playlistsRoutes from './routes/playlists'
 import browseRoutes from './routes/browse'
 import libraryRoutes from './routes/library'
 import searchRoutes from './routes/search'
+import usersRoutes from './routes/users'
 import { initializeIndexes } from './services/search-sync'
 
 const PORT = parseInt(process.env['SERVER_PORT'] ?? '3001', 10)
@@ -109,6 +110,7 @@ async function bootstrap() {
   fastify.register(browseRoutes, { prefix: '/api/v1/browse' })
   fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
   fastify.register(searchRoutes, { prefix: '/api/v1/search' })
+  fastify.register(usersRoutes, { prefix: '/api/v1/users' })
 
   // ── Global error handler ───────────────────────────────────────────────────
 
