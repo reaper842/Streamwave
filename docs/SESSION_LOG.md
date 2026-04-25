@@ -669,3 +669,57 @@ Both menu item `<button>` elements in `TopBar.tsx` only called `setDropdownOpen(
 **User action required:** Stop any running `npm run dev` process, then restart it. `.next/` was deleted so Turbopack will recompile fresh from source.
 
 **Result:** `npm run build` → 0 errors (1 expected Cache-Control warning).
+
+---
+
+## Session 35 — 2026-04-25: Bug Fix — Profile & Settings Navigation (Stale Turbopack Cache Recurrence)
+
+**Goal:** Fix "Profile" and "Settings" items in the TopBar dropdown doing nothing when clicked, reported again after server restart.
+
+**Root cause:**
+
+Identical to Sessions 29–34: `.next/turbopack/` accumulated stale compiled client JavaScript from before Session 34's navigation fix. Restarting `npm run dev` does NOT clear the Turbopack incremental dev cache — only deleting `.next/` does. The stale compiled JS rendered `<button onClick={router.push('/profile')}>` buttons from before Session 34's fix, not the current `<Link href="/profile">` components. Clicking these buttons fired `router.push` which silently does nothing when Turbopack is in a stale state.
+
+**Investigation:**
+
+- Confirmed `TopBar.tsx` source code is already correct — Profile and Settings navigation uses `<Link href>` components (fixed in Session 34)
+- Confirmed `/profile` and `/settings` pages exist and render correctly
+- Confirmed `npm run build` passes with 0 errors and both routes appear in the route table
+- Root cause was purely the stale `.next/turbopack/` cache serving old compiled JS
+
+**Fix applied:**
+
+1. **Deleted `.next/`** — cleared all stale Turbopack artifacts (both production build output and incremental dev cache). The next `npm run dev` will compile fresh from source, ensuring the client bundle has the correct `<Link>` components.
+
+**Files changed:**
+
+- None (source code was already correct from Session 34)
+
+**User action required:** Stop any running `npm run dev` process, restart it. `.next/` was deleted so Turbopack recompiles from scratch.
+
+**Result:** `npm run build` → 0 errors, 16 routes. All Profile and Settings navigation code is correct in source.
+
+---
+
+## Session 36 — 2026-04-25: feat — AccountTabBar tab navigation on Profile and Settings
+
+**Goal:** Add tab navigation between Profile and Settings pages so users can switch directly without reopening the TopBar dropdown.
+
+**What was done:**
+
+- Created `src/components/layout/AccountTabBar.tsx` — client component using `usePathname()` to highlight the active tab; pill-style buttons matching the Library page tab style; `<Link href>` for navigation
+- Updated `src/app/(main)/profile/page.tsx` — `<AccountTabBar />` inserted above the gradient hero section
+- Updated `src/app/(main)/settings/page.tsx` — `<AccountTabBar />` inserted above the page header
+- Updated `src/app/(main)/profile/loading.tsx` — skeleton tab bar added to match layout during server-side render
+- Updated `src/app/(main)/settings/loading.tsx` — same skeleton treatment
+
+**What was NOT completed:**
+
+- M9 Deployment & Launch tasks (all still pending)
+
+**Key technical notes for future sessions:**
+
+- `AccountTabBar` is a client component (needs `usePathname`) — it can be imported from the Profile RSC because server components can render client components in Next.js App Router
+- Tab styling uses pill-style (`bg-text-primary text-bg-base` for active, `bg-bg-highlight text-text-primary hover:bg-bg-press` for inactive) — matches Library page tabs for consistency
+
+**Result:** `npm run build` → 0 errors, 16 routes unchanged.
