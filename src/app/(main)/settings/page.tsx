@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
@@ -11,10 +11,17 @@ export default function SettingsPage() {
   const router = useRouter()
   const { showToast } = useToast()
 
-  const currentName = session?.user?.displayName ?? session?.user?.name ?? ''
-
-  const [displayName, setDisplayName] = useState(currentName)
+  const [displayName, setDisplayName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+
+  // Sync display name from session once it loads (useState initializes empty; session arrives async)
+  useEffect(() => {
+    if (session?.user) {
+      setDisplayName(session.user.displayName ?? session.user.name ?? '')
+    }
+  }, [session])
+
+  const currentName = session?.user?.displayName ?? session?.user?.name ?? ''
 
   const handleSave = async (e: { preventDefault(): void }) => {
     e.preventDefault()
