@@ -113,6 +113,8 @@ DELETE /api/v1/playlists/:id
 POST   /api/v1/playlists/:id/tracks
 DELETE /api/v1/playlists/:id/tracks/:trackId
 PATCH  /api/v1/playlists/:id/tracks/reorder
+GET    /api/v1/users/me                     → current user profile + library counts
+PATCH  /api/v1/users/me                     → update display_name (and optionally avatar_url)
 ```
 
 ---
@@ -180,6 +182,8 @@ PATCH  /api/v1/playlists/:id/tracks/reorder
 - `server/plugins/meilisearch.ts` — Meilisearch client
 - `server/lib/prisma.ts` — Prisma singleton with PrismaPg adapter
 - `server/routes/auth.ts` — All 6 auth route handlers
+- `server/routes/users.ts` — GET + PATCH /api/v1/users/me (profile read + display-name update)
+- `server/services/users.ts` — `getUserProfile` (profile + library counts), `updateUserProfile`
 - `server/test/buildApp.ts` — Test Fastify factory (no rate-limit plugin)
 - `server/load-env.ts` — **First import** in `server/index.ts`; loads `.env` then `.env.local`. Must stay first or modules that read `process.env` at eval time (prisma, auth plugin) will see `undefined`.
 

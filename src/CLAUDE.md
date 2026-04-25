@@ -139,8 +139,14 @@ Singleton class wrapping Howler.js. Must support:
 - `src/lib/data/content.ts` — Prisma-based data fetchers for RSC pages (no HTTP loopback)
   - `fetchAlbum`, `fetchArtist`, `fetchArtistAlbums`, `fetchArtistTopTracks`, `fetchPlaylist`, `fetchFeatured`, `getStaticGenres`
 - `src/lib/data/library.ts` — RSC fetcher `fetchLikedSongs(userId)` using Prisma directly
+- `src/lib/data/profile.ts` — RSC fetcher `fetchUserProfileStats(userId)` — user row + 4 library counts in parallel
 - Import ONLY from Server Components / server actions. Never from `"use client"` components.
 - Liked Songs page calls `auth()` from `src/lib/auth/config.ts` to get `session.user.id`
+
+## Profile & Settings Pages (Session 32)
+
+- `src/app/(main)/profile/page.tsx` — RSC. Calls `auth()` + `fetchUserProfileStats()`. Shows avatar, display name, email, join date, 4-stat grid, and collection quick-links.
+- `src/app/(main)/settings/page.tsx` — Client Component. Display name update form → `PATCH /api/v1/users/me` via `apiClient.patch('/users/me', ...)`. Uses `useSession().update()` to refresh the NextAuth session token after save. Email is read-only.
 
 ## Library Store (M5) — `src/stores/library.ts`
 
