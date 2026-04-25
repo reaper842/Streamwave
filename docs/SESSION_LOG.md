@@ -600,3 +600,43 @@ Identical to Sessions 29 and 30. The `.next/` Turbopack dev cache accumulated st
 - **User action required:** Stop any running `npm run dev` process, then restart it. The `.next/` was deleted so Turbopack recompiles from scratch.
 
 **Result:** `npm run build` → 0 errors (1 expected Cache-Control warning).
+
+---
+
+## Session 32 — 2026-04-25: Bug Fix — Profile & Settings Navigation
+
+**Goal:** Fix "Profile" and "Settings" menu items in the TopBar user dropdown doing nothing when clicked.
+
+**Root cause:**
+
+Both menu item `<button>` elements in `TopBar.tsx` only called `setDropdownOpen(false)` on click — there was no navigation. The `/profile` and `/settings` routes did not exist either.
+
+**Fixes:**
+
+1. **Created `/profile` page** (`src/app/(main)/profile/page.tsx`) — RSC. Uses `auth()` to get the session user, then calls `fetchUserProfileStats()` (Prisma directly) to load liked-song count, playlist count, followed-artist count, and saved-album count. Displays a hero section (avatar + name + email + join date) and a 2×2 stats grid with links to the library.
+
+2. **Created `/settings` page** (`src/app/(main)/settings/page.tsx`) — Client Component. Shows a form to update the user's display name (PATCH to `/api/v1/users/me`). Email field is read-only. Also has a "Log out" action button. Uses `useSession().update()` to refresh the session after a successful name change.
+
+3. **Created `server/routes/users.ts`** — Fastify plugin. Two routes:
+   - `GET /api/v1/users/me` — returns profile + library counts
+   - `PATCH /api/v1/users/me` — updates `display_name` (and optionally `avatar_url`); uses `safeText(1, 50)` Zod helper for sanitization.
+
+4. **Created `server/services/users.ts`** — business logic: `getUserProfile()` and `updateUserProfile()`.
+
+5. **Created `src/lib/data/profile.ts`** — RSC-only Prisma fetcher `fetchUserProfileStats()`.
+
+6. **Registered users route in `server/index.ts`** — `fastify.register(usersRoutes, { prefix: '/api/v1/users' })`.
+
+7. **Updated `TopBar.tsx`** — Profile and Settings buttons now call `router.push('/profile')` and `router.push('/settings')` respectively, then close the dropdown.
+
+**Files changed:**
+
+- `src/components/layout/TopBar.tsx` — added `router.push` navigation to Profile + Settings buttons
+- `src/app/(main)/profile/page.tsx` — new RSC profile page
+- `src/app/(main)/settings/page.tsx` — new client settings page
+- `src/lib/data/profile.ts` — new RSC data fetcher
+- `server/routes/users.ts` — new Fastify plugin (GET + PATCH /api/v1/users/me)
+- `server/services/users.ts` — new service (getUserProfile, updateUserProfile)
+- `server/index.ts` — registered usersRoutes
+
+**Result:** `npm run build` → 0 errors. Both `/profile` and `/settings` appear in the route table.
