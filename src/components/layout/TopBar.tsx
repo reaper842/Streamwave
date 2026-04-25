@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/ui'
 import { ChevronLeft, ChevronRight, Menu, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { SearchInput } from '@/components/search/SearchInput'
@@ -115,26 +116,22 @@ export function TopBar() {
             role="menu"
             className="absolute right-0 top-full mt-1 w-48 rounded bg-bg-highlight py-1 shadow-xl"
           >
-            <button
+            <Link
+              href="/profile"
               role="menuitem"
               className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => {
-                setDropdownOpen(false)
-                router.push('/profile')
-              }}
+              onClick={() => setDropdownOpen(false)}
             >
               Profile
-            </button>
-            <button
+            </Link>
+            <Link
+              href="/settings"
               role="menuitem"
               className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => {
-                setDropdownOpen(false)
-                router.push('/settings')
-              }}
+              onClick={() => setDropdownOpen(false)}
             >
               Settings
-            </button>
+            </Link>
             <div className="my-1 border-t border-border-default" />
             <button
               role="menuitem"
