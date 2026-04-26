@@ -135,7 +135,10 @@ export const authConfig: NextAuthConfig = {
      */
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = (token.userId as string) ?? ''
+        // token.sub is the standard JWT subject (always set by NextAuth to the user's id).
+        // Fall back to it when token.userId is absent or empty (e.g. JWTs minted by old
+        // code before the userId field was added to the jwt callback).
+        session.user.id = token.userId || token.sub || ''
         session.user.displayName = (token.displayName as string) ?? ''
         session.user.avatarUrl = (token.avatarUrl as string | null) ?? null
       }

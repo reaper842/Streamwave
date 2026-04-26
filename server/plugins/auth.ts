@@ -70,9 +70,13 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
         salt: cookieName,
       })
 
-      if (payload?.userId && payload?.email) {
+      // Prefer the explicit userId field; fall back to the standard JWT sub claim.
+      // This handles JWTs minted before the userId field was added to the jwt callback.
+      const resolvedId =
+        (payload?.userId as string | undefined) || (payload?.sub as string | undefined)
+      if (resolvedId && payload?.email) {
         request.user = {
-          id: payload.userId as string,
+          id: resolvedId,
           email: payload.email as string,
         }
       }
