@@ -108,7 +108,10 @@ export const authConfig: NextAuthConfig = {
      * On first sign-in, `user` and `account` are populated.
      * On subsequent requests, only `token` is provided.
      */
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
+      if (trigger === 'update' && session?.displayName) {
+        token.displayName = session.displayName as string
+      }
       if (account && user) {
         if (account.type === 'credentials') {
           // Credentials: user object comes directly from authorize()
