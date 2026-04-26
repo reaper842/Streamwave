@@ -723,3 +723,63 @@ Identical to Sessions 29–34: `.next/turbopack/` accumulated stale compiled cli
 - Tab styling uses pill-style (`bg-text-primary text-bg-base` for active, `bg-bg-highlight text-text-primary hover:bg-bg-press` for inactive) — matches Library page tabs for consistency
 
 **Result:** `npm run build` → 0 errors, 16 routes unchanged.
+
+---
+
+## Session 37 — 2026-04-26: Bug Fix — Profile & Settings Navigation (Root Cause: empty session.user.id)
+
+**Goal:** Definitively fix Profile and Settings menu items in the TopBar dropdown that still appeared non-functional after Sessions 32–36.
+
+**Investigation:**
+
+Previous sessions (32, 33, 35) attributed the bug to Turbopack stale cache and fixed it by (a) replacing `router.push` with `<Link>` components and (b) deleting `.next/`. However, the bug continued to recur. This session did a deep investigation of the compiled Turbopack bundle and discovered:
+
+1. **The compiled bundle IS correct** — the `src_03tngh1._.js` chunk (which contains TopBar) was inspected and confirmed to contain `href: "/profile"` and `href: "/settings"` via the Next.js `Link` component. The TopBar navigation was working correctly.
+
+2. **The real bug: `session.user.id` empty → profile page redirect** — The profile RSC (`(main)/profile/page.tsx`) guards with `if (!session?.user?.id) redirect('/login')`. If `session.user.id` is an empty string, this guard fires and the user is instantly redirected to `/login`, making it appear as if clicking "Profile" did nothing (the redirect happens at RSC render speed, before the user notices).
+
+3. **Root cause of empty `session.user.id`**: In `src/lib/auth/config.ts`, the session callback sets `session.user.id = (token.userId as string) ?? ''`. If `token.userId` is missing from the JWT (e.g. for JWTs minted in unusual circumstances), `??` coalesces `undefined` to `''`. Using `??` (nullish coalescing) instead of `||` (falsy coalescing) means an empty string `''` also passes through as `''`. The `??` operator does NOT replace `''`.
+
+4. **`token.sub` is always available** — NextAuth v5 always sets the standard JWT `sub` claim to the user's ID when the user signs in, regardless of what the custom `jwt` callback does. This is a guaranteed field. The existing code never used it as a fallback.
+
+5. **Fastify auth plugin same issue** — `server/plugins/auth.ts` checks `payload?.userId && payload?.email`. If `payload.userId = ''` (empty string), `'' && email` is falsy, so `request.user` stays null, causing 401 on any authenticated Fastify route (e.g. Settings PATCH).
+
+**Fixes:**
+
+1. **`src/lib/auth/config.ts` session callback** — Changed from `??` to `||` and added `token.sub` fallback:
+
+   ```typescript
+   // BEFORE
+   session.user.id = (token.userId as string) ?? ''
+   // AFTER
+   session.user.id = token.userId || token.sub || ''
+   ```
+
+   `||` treats empty string as falsy, so `'' || token.sub` correctly falls back to `token.sub`. `token.sub` is the standard JWT subject, always set by NextAuth to the user's UUID on sign-in.
+
+2. **`server/plugins/auth.ts` NextAuth JWT decode** — Added `payload.sub` fallback:
+
+   ```typescript
+   // BEFORE
+   if (payload?.userId && payload?.email) { request.user = { id: payload.userId, ... } }
+   // AFTER
+   const resolvedId = payload?.userId || payload?.sub
+   if (resolvedId && payload?.email) { request.user = { id: resolvedId, ... } }
+   ```
+
+3. **Deleted `.next/`** — Cleared Turbopack cache to ensure fresh compilation.
+
+**Files changed:**
+
+- `src/lib/auth/config.ts` — session callback now uses `token.userId || token.sub || ''`
+- `server/plugins/auth.ts` — Fastify auth plugin now uses `payload.sub` as fallback for `payload.userId`
+
+**User action required:** Stop any running `npm run dev` / Fastify process, restart them. `.next/` was deleted so Turbopack recompiles from scratch. **Also: log out and back in** to get a fresh JWT cookie — or simply use the app normally; on the next request `token.sub` will resolve the correct user ID automatically without requiring a new login.
+
+**Key technical notes for future sessions:**
+
+- **`token.sub` is the reliable fallback** — NextAuth v5 always sets `sub = user.id` when the jwt callback first fires (sign-in). Never rely solely on a custom field like `token.userId` without a `token.sub` fallback.
+- **`??` vs `||` for userId** — Use `||` when the fallback should also apply for empty string `''`, not just null/undefined. `??` only catches null/undefined.
+- **Profile page redirect is invisible** — A `redirect('/login')` in an RSC fires at server-render speed; from the browser it looks like "nothing happened" because the round-trip to login and back is instant on a local machine.
+
+**Result:** `npm run build` → 0 errors, 16 routes. `tsc -p tsconfig.server.json --noEmit` → 0 errors.
