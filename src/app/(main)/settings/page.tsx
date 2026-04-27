@@ -150,7 +150,10 @@ export default function SettingsPage() {
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-text-subdued">
             Privacy &amp; Security
           </h2>
-          <div className="overflow-hidden rounded-xl bg-bg-elevated divide-y divide-border-default">
+          <div
+            className="overflow-hidden rounded-xl bg-bg-elevated divide-y divide-border-default"
+            suppressHydrationWarning
+          >
             <Link
               href="/reset-password"
               className="flex items-center gap-4 px-5 py-4 text-sm transition-colors hover:bg-bg-highlight"
@@ -166,13 +169,21 @@ export default function SettingsPage() {
                 aria-hidden="true"
               />
             </Link>
-            <div className="flex items-center gap-4 px-5 py-4 text-sm opacity-50 cursor-default select-none">
+            <Link
+              href="/settings/notifications"
+              className="flex items-center gap-4 px-5 py-4 text-sm transition-colors hover:bg-bg-highlight"
+            >
               <Bell size={18} className="flex-shrink-0 text-text-secondary" aria-hidden="true" />
               <div className="flex-1">
                 <p className="font-semibold text-text-primary">Notifications</p>
-                <p className="text-xs text-text-secondary">Coming soon</p>
+                <p className="text-xs text-text-secondary">Manage email and push preferences</p>
               </div>
-            </div>
+              <ChevronRight
+                size={16}
+                className="flex-shrink-0 text-text-subdued"
+                aria-hidden="true"
+              />
+            </Link>
           </div>
         </section>
 

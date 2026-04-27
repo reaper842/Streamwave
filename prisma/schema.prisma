@@ -21,10 +21,11 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  playlists        Playlist[]
-  liked_songs      LikedSong[]
-  followed_artists FollowedArtist[]
-  saved_albums     SavedAlbum[]
+  playlists                Playlist[]
+  liked_songs              LikedSong[]
+  followed_artists         FollowedArtist[]
+  saved_albums             SavedAlbum[]
+  notification_preferences NotificationPreferences?
 
   @@map("users")
 }
@@ -173,4 +174,19 @@ model SavedAlbum {
   @@index([user_id])
   @@index([album_id])
   @@map("saved_albums")
+}
+
+// ─── NotificationPreferences ─────────────────────────────────────────────────
+
+model NotificationPreferences {
+  user_id          String  @id
+  new_releases     Boolean @default(true)
+  playlist_updates Boolean @default(false)
+  account_security Boolean @default(true)
+  product_updates  Boolean @default(false)
+  updated_at       DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
