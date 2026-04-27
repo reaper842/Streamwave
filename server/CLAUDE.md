@@ -115,6 +115,8 @@ DELETE /api/v1/playlists/:id/tracks/:trackId
 PATCH  /api/v1/playlists/:id/tracks/reorder
 GET    /api/v1/users/me                     → current user profile + library counts
 PATCH  /api/v1/users/me                     → update display_name (and optionally avatar_url)
+GET    /api/v1/users/me/notifications        → fetch (or upsert-create with defaults) NotificationPreferences
+PATCH  /api/v1/users/me/notifications        → partial update of notification flags (all optional booleans)
 ```
 
 ---
@@ -182,8 +184,9 @@ PATCH  /api/v1/users/me                     → update display_name (and optiona
 - `server/plugins/meilisearch.ts` — Meilisearch client
 - `server/lib/prisma.ts` — Prisma singleton with PrismaPg adapter
 - `server/routes/auth.ts` — All 6 auth route handlers
-- `server/routes/users.ts` — GET + PATCH /api/v1/users/me (profile read + display-name update)
+- `server/routes/users.ts` — GET + PATCH /api/v1/users/me; GET + PATCH /api/v1/users/me/notifications
 - `server/services/users.ts` — `getUserProfile` (profile + library counts), `updateUserProfile`
+- `server/services/notifications.ts` — `getNotificationPreferences` (upsert-on-read), `updateNotificationPreferences` (partial upsert)
 - `server/test/buildApp.ts` — Test Fastify factory (no rate-limit plugin)
 - `server/load-env.ts` — **First import** in `server/index.ts`; loads `.env` then `.env.local`. Must stay first or modules that read `process.env` at eval time (prisma, auth plugin) will see `undefined`.
 
@@ -203,3 +206,5 @@ PATCH  /api/v1/users/me                     → update display_name (and optiona
 - **Security headers**: `server/index.ts` `onSend` hook applies `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` to every API response. CSP and other browser-facing headers are in `next.config.ts` `headers()` (applies only to the Next.js origin, not Fastify directly).
 - **ESM import hoisting**: `tsx` runs TypeScript as ESM. All static `import` declarations are hoisted and evaluated before any module body code. `server/load-env.ts` MUST be the first import in `server/index.ts`. Never interleave `loadEnv()` calls between `import` statements — they will run too late.
 - **CORS must list methods explicitly**: `@fastify/cors` v11 + Fastify 5 — always pass `methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS']` and `allowedHeaders: ['Content-Type','Authorization','Cookie']`. DELETE/PUT/PATCH always require an OPTIONS preflight; if `Access-Control-Allow-Methods` is missing the method, the browser throws `TypeError: Failed to fetch` before the actual request is sent. Also set `preflightContinue: false` and `optionsSuccessStatus: 204`.
+- **`request.body ?? {}` before `safeParse` in optional-body PATCH handlers** — the lenient JSON parser (Session 24 workaround) returns `null` for empty/missing bodies. `z.object({}).safeParse(null)` fails. Apply `?? {}` before parsing in PATCH routes that allow an empty body.
+- **Prisma upsert for user-settings rows** — `upsert({ where: { user_id }, create: { ...defaults }, update: {} })` is the get-or-create pattern for rows that auto-provision on first access (e.g., NotificationPreferences). For update handlers, pass partial data directly as `update`.

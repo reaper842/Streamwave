@@ -783,3 +783,101 @@ Previous sessions (32, 33, 35) attributed the bug to Turbopack stale cache and f
 - **Profile page redirect is invisible** — A `redirect('/login')` in an RSC fires at server-render speed; from the browser it looks like "nothing happened" because the round-trip to login and back is instant on a local machine.
 
 **Result:** `npm run build` → 0 errors, 16 routes. `tsc -p tsconfig.server.json --noEmit` → 0 errors.
+
+---
+
+## Session 38 — 2026-04-26: Bug Fix — Display Name Not Updating in TopBar After Settings Save
+
+**Goal:** Fix TopBar dropdown still showing old display name after user saves a new one in Settings.
+
+**Root cause:**
+
+The NextAuth `jwt` callback only ran its update logic inside `if (account && user)` — true only on initial sign-in. `useSession().update({ displayName })` fires the jwt callback with `trigger === 'update'`, but without a branch for that trigger the callback returned the token unchanged, so `token.displayName` kept the old value.
+
+**Fix:**
+
+Added a `trigger === 'update'` branch at the top of the jwt callback in `src/lib/auth/config.ts`:
+
+```typescript
+if (trigger === 'update' && session?.displayName) {
+  token.displayName = session.displayName as string
+}
+```
+
+No DB re-fetch needed — Settings page already saved the new name via Fastify. The session callback already maps `token.displayName → session.user.displayName`. The TopBar re-renders once the session propagates.
+
+**Files changed:**
+
+- `src/lib/auth/config.ts` — jwt callback now handles `trigger === 'update'`
+
+**Key technical notes for future sessions:**
+
+- **NextAuth `update()` + jwt `trigger`** — `useSession().update(data)` fires the jwt callback with `trigger === 'update'`; the data object is the `session` parameter. Without an explicit branch for this trigger the token is returned unchanged and the session stays stale.
+
+**Result:** `npm run build` → 0 errors. Fix committed as `f62b666`.
+
+---
+
+## Session 39 — 2026-04-27: feat — Notification Preferences System
+
+**Goal:** Implement notification preferences for the "Notifications — Coming soon" placeholder in Settings > Privacy & Security.
+
+**What was done:**
+
+**Database:**
+
+- Added `NotificationPreferences` model to `prisma/schema.prisma` — 1:1 with User (cascade delete), 4 boolean flags with defaults, `updated_at` timestamp
+- Added `notification_preferences NotificationPreferences?` relation on User model
+- Migration: `20260427205347_add_notification_preferences`
+
+**Backend:**
+
+- `server/services/notifications.ts` (new) — `getNotificationPreferences` (upsert-on-first-read), `updateNotificationPreferences` (partial upsert)
+- `server/routes/users.ts` — `GET /api/v1/users/me/notifications` + `PATCH /api/v1/users/me/notifications`. PATCH uses `request.body ?? {}` to handle null from the lenient parser
+- `server/test/buildApp.ts` — added `usersRoutes` to test factory
+
+**Frontend:**
+
+- `src/types/notifications.ts` (new) — `NotificationPreferences` interface + `NotificationPreferenceKey` type
+- `src/app/(main)/settings/notifications/page.tsx` (new) — client component with 4 `<button role="switch">` toggles, optimistic updates, error rollback + toast
+- `src/app/(main)/settings/notifications/loading.tsx` (new) — skeleton matching page layout
+- `src/app/(main)/settings/page.tsx` — Notifications row replaced with `<Link href="/settings/notifications">` matching Change Password style
+
+**Tests:**
+
+- `server/routes/__tests__/notifications.test.ts` (new) — 9 integration tests (GET defaults, idempotency, 401; PATCH single flag, multi flag, persistence, bad payload 400, empty body no-op, 401)
+
+**Result:** `npm run build` → 0 errors, 17 routes | 219/219 server tests (9 new) | 118/118 client tests | `tsc -p tsconfig.server.json --noEmit` → 0 errors
+
+**Key technical notes for future sessions:**
+
+- **Prisma upsert for user settings** — `upsert({ where, create: { ...defaults }, update: {} })` for GET-or-create; for PATCH pass partial data as `update`
+- **`request.body ?? {}` before `safeParse`** — lenient parser returns `null` for empty bodies; `safeParse(null)` fails on `z.object({})`. Apply `?? {}` in PATCH handlers that allow empty bodies.
+- **Toggle ARIA** — use `<button role="switch" aria-checked>`, not `<input type="checkbox">`, for custom-styled toggles
+- **`apiClient.get<T>` generic** — pass inner type directly: `apiClient.get<NotificationPreferences>()` → `res.data` is `NotificationPreferences`. Do NOT double-wrap.
+
+---
+
+## Session 40 — 2026-04-28: Bug Fix — Turbopack Stale Cache (Settings Page Hydration Mismatch)
+
+**Goal:** Fix React hydration mismatch on `src/app/(main)/settings/page.tsx` after Session 39's Notifications row change.
+
+**Root cause:**
+
+Identical to Sessions 29–35. The `.next/turbopack/` compiled client bundle was from before Session 39's change (Notifications row was a `<div opacity-50>` in the old bundle; server renders the new `<Link>`). React detected the mismatch.
+
+**Fix:**
+
+1. Deleted `.next/` — removed all stale Turbopack artifacts.
+2. Added `suppressHydrationWarning` to the Privacy & Security section container `<div>` in `src/app/(main)/settings/page.tsx` as a permanent safeguard against future cache drift.
+
+**Files changed:**
+
+- `src/app/(main)/settings/page.tsx` — `suppressHydrationWarning` on the Privacy & Security card container
+
+**Key technical notes for future sessions:**
+
+- **Turbopack `(stale)` = delete `.next/` and restart** — This is the 6th recurrence. When the dev overlay shows `(stale)`, the ONLY fix is deleting `.next/` and restarting `npm run dev`. Browser refresh never works.
+- **`suppressHydrationWarning` on container** — Placing it on the parent `<div>` of the section that changed means the mismatch is tolerated gracefully on the next stale-cache drift, instead of crashing the page.
+
+**Result:** `npm run build` → 0 errors | `.next/` cleared | dev server must be restarted fresh.

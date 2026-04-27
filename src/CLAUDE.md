@@ -224,3 +224,12 @@ Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlayli
 ## Account Tab Bar
 
 `AccountTabBar` at `src/components/layout/AccountTabBar.tsx` — client component shared by `/profile` and `/settings` pages. Uses `usePathname()` to highlight the active tab. Pill-style tabs matching Library page style. Must remain a `'use client'` component; can be safely rendered from Profile RSC because server components can render client components in App Router.
+
+## Notification Preferences (Session 39)
+
+- `src/types/notifications.ts` — `NotificationPreferences` interface (4 boolean flags) + `NotificationPreferenceKey` type alias
+- `src/app/(main)/settings/notifications/page.tsx` — client component. Fetches via `apiClient.get<NotificationPreferences>('/users/me/notifications')`. Renders 4 toggle rows with `<button role="switch" aria-checked>` toggle. Optimistic updates: flip → PATCH → revert on error.
+- `src/app/(main)/settings/notifications/loading.tsx` — skeleton matching page layout
+- `src/app/(main)/settings/page.tsx` — Notifications row is `<Link href="/settings/notifications">` (no longer a `opacity-50 cursor-default` placeholder). The Privacy & Security container has `suppressHydrationWarning` to tolerate Turbopack cache drift.
+- **`apiClient.get<T>` generic** — pass the inner type directly (`T = NotificationPreferences`); `res.data` is already `T`. Do NOT wrap as `{ data: T }`.
+- **Toggle pattern** — `<button role="switch" aria-checked={checked}>` is the ARIA-correct approach for custom toggle switches (not `<input type="checkbox">`). The `id` prop wires to `<label htmlFor>` for accessible click area.
