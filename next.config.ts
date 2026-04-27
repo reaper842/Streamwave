@@ -74,16 +74,22 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      {
-        // Long-lived cache for Next.js static assets (chunks, JS, CSS with content hash in filename)
-        source: '/_next/static/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
+      // In production, Next.js generates content-hashed filenames so immutable long-term caching
+      // is safe. In development, Turbopack reuses the same chunk URLs for recompiled code, so
+      // immutable caching causes the browser to serve stale JS indefinitely — never apply it in dev.
+      ...(process.env['NODE_ENV'] === 'production'
+        ? [
+            {
+              source: '/_next/static/(.*)',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=31536000, immutable',
+                },
+              ],
+            },
+          ]
+        : []),
       {
         // Cache public/ static files for 1 day (audio files are developer-local so no long TTL)
         source: '/(.+)',
