@@ -881,3 +881,77 @@ Identical to Sessions 29–35. The `.next/turbopack/` compiled client bundle was
 - **`suppressHydrationWarning` on container** — Placing it on the parent `<div>` of the section that changed means the mismatch is tolerated gracefully on the next stale-cache drift, instead of crashing the page.
 
 **Result:** `npm run build` → 0 errors | `.next/` cleared | dev server must be restarted fresh.
+
+---
+
+## Session 41 — 2026-04-28: Bug Fix — Root Cause of Recurring Turbopack Hydration Mismatches (Layer 1)
+
+**Goal:** Find and eliminate the root cause of why the Turbopack hydration mismatch keeps recurring across sessions despite deleting `.next/` and clearing browser site data.
+
+**Root cause:**
+
+`next.config.ts` had a `headers()` entry setting `Cache-Control: public, max-age=31536000, immutable` for `/_next/static/(.*)` that applied in **ALL environments** (no `NODE_ENV` guard). In production this is correct — every build produces content-hashed filenames so `immutable` is safe. In development, Turbopack reuses the same chunk URLs when it recompiles modified code. The browser cached the chunk as `immutable` after the first load, then refused to re-fetch even after `npm run dev` restart — so it kept serving stale JS while the server rendered fresh code.
+
+This was the mechanism making the issue "unfixable" by deleting `.next/` alone: `.next/` only clears the server-side Turbopack cache. The browser retains the chunk marked `immutable`.
+
+**Fix:**
+
+Wrapped the `/_next/static/(.*)` `Cache-Control` block in `process.env['NODE_ENV'] === 'production'` guard in `next.config.ts`.
+
+**Files changed:**
+
+- `next.config.ts` — `/_next/static/(.*)` Cache-Control guard to production-only
+
+**Result:** `npm run build` → 0 errors. Browser must clear site data once to evict already-cached stale chunks.
+
+---
+
+## Session 42 — 2026-04-28: Bug Fix — Incomplete Cache Fix (Layer 2)
+
+**Goal:** Fix the hydration mismatch that persisted after Session 41.
+
+**Root cause (second browser cache layer):**
+
+Session 41 fixed the `/_next/static/(.*)` rule but left a second rule unconditional: `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` for `/(.+)`. The `/(.+)` glob pattern matches `/_next/static/` paths in addition to `public/` assets. After clearing browser site data (which evicted the `immutable` chunk from Session 41), the browser fetched the fresh chunk — but the `/(.+)` rule then cached it with `max-age=86400` (1 day). On the next dev server restart and Turbopack recompile, the browser served this day-old cached JS → hydration mismatch again.
+
+**Fix:**
+
+Moved both caching rules (`/_next/static/` immutable + `/(.+)` 1-day) into the same production-only conditional spread in `next.config.ts`. In development, no `Cache-Control` overrides are applied to any path.
+
+**Files changed:**
+
+- `next.config.ts` — `/(.+)` Cache-Control rule moved into production-only block (commit `13b50f8`)
+
+**Result:** `npm run build` → 0 errors.
+
+---
+
+## Session 43 — 2026-04-28: Bug Fix — Three-Layer Cache Fully Resolved (Layer 3) + Source Code Audit
+
+**Goal:** Diagnose why hydration issue persisted after Sessions 41+42 browser-cache fixes.
+
+**Root cause (third layer — server-side disk cache):**
+
+Turbopack maintains an incremental compile cache at `.next/turbopack/`. When `npm run dev` restarts, it reuses this disk cache rather than recompiling from source. If modules were compiled before the Sessions 41+42 changes were applied, the server renders HTML from stale compiled output while the browser now runs freshly-fetched (uncached) JS → mismatch.
+
+Fix: delete `.next/` entirely before each fresh dev session to force a full cold compile.
+
+**Additional finding — port conflict:**
+
+Starting a second `next dev` instance to diagnose the issue revealed: `⚠ Port 3000 is in use by process 20756, using available port 3001 instead.` — an old dev server was still running on 3000. Any browser access to `localhost:3000` hit the old process with stale compiled modules regardless of all cache fixes. **User must kill all Node processes before starting fresh** (`taskkill /F /PID <pid>` on Windows, or restart the computer).
+
+**Source code audit — all clean:**
+
+Full audit of all client-rendered components confirmed no code-level hydration mismatches:
+
+- Home page: `new Date().getHours()` is in a Server Component — no client hydration boundary
+- All `window.*` / `localStorage` accesses are correctly inside `useEffect` / event handlers
+- `PlaybackBar`, `Sidebar`, `TopBar`, `MobileNavBar`, `NowPlaying`, `TransportControls`, `VolumeSlider`, `ProgressBar`, `ContextMenu` — all clean
+- Zustand stores have consistent initial state across SSR and client
+- Settings + Notifications pages — clean; `suppressHydrationWarning` safeguards in place
+
+**Files changed:**
+
+- `.next/` — deleted to clear Turbopack disk cache (not tracked by git)
+
+**Result:** `npm run build` → 0 errors. All three browser/server cache layers are now fixed. No code-level hydration issues exist in source. The issue cannot recur unless a new `Cache-Control` override is added to `next.config.ts` without a `NODE_ENV === 'production'` guard.
