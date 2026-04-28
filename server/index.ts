@@ -94,10 +94,64 @@ async function bootstrap() {
     done()
   })
 
+  // ── Request logging ────────────────────────────────────────────────────────
+
+  fastify.addHook('onResponse', (request, reply, done) => {
+    fastify.log.info({
+      requestId: request.id,
+      method: request.method,
+      url: request.url,
+      statusCode: reply.statusCode,
+      responseTime: Math.round(reply.elapsedTime),
+      userId: request.user?.id ?? null,
+    })
+    done()
+  })
+
   // ── Health check ───────────────────────────────────────────────────────────
 
+  // Simple liveness probe (no dependency checks) — used by load balancers and Railway
   fastify.get('/health', async () => {
     return { status: 'ok', timestamp: new Date().toISOString() }
+  })
+
+  // Readiness probe — checks all dependencies before returning healthy
+  fastify.get('/api/v1/health', async (_request, reply) => {
+    const checks: Record<string, 'ok' | 'error'> = {}
+
+    // PostgreSQL check
+    try {
+      const { prisma } = await import('./lib/prisma')
+      await prisma.$queryRaw`SELECT 1`
+      checks['postgres'] = 'ok'
+    } catch {
+      checks['postgres'] = 'error'
+    }
+
+    // Redis check
+    try {
+      await fastify.redis.ping()
+      checks['redis'] = 'ok'
+    } catch {
+      checks['redis'] = 'error'
+    }
+
+    // Meilisearch check
+    try {
+      await fastify.meili.health()
+      checks['meilisearch'] = 'ok'
+    } catch {
+      checks['meilisearch'] = 'error'
+    }
+
+    const allOk = Object.values(checks).every((v) => v === 'ok')
+    const statusCode = allOk ? 200 : 503
+
+    reply.status(statusCode).send({
+      status: allOk ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      checks,
+    })
   })
 
   // ── Routes ─────────────────────────────────────────────────────────────────
