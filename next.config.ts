@@ -74,12 +74,15 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // In production, Next.js generates content-hashed filenames so immutable long-term caching
-      // is safe. In development, Turbopack reuses the same chunk URLs for recompiled code, so
-      // immutable caching causes the browser to serve stale JS indefinitely — never apply it in dev.
+      // Both caching rules are production-only. In development, Turbopack reuses the same chunk
+      // URLs when recompiling modified code, so ANY positive Cache-Control max-age causes the
+      // browser to serve stale JS after the next recompile — even after clearing site data,
+      // because the fresh fetch re-populates the cache for another day. In production, Next.js
+      // generates content-hashed filenames so long-term caching is safe.
       ...(process.env['NODE_ENV'] === 'production'
         ? [
             {
+              // Immutable 1-year cache for hashed static chunks
               source: '/_next/static/(.*)',
               headers: [
                 {
@@ -88,18 +91,18 @@ const nextConfig: NextConfig = {
                 },
               ],
             },
+            {
+              // 1-day cache for public/ assets (images, audio)
+              source: '/(.+)',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=86400, stale-while-revalidate=604800',
+                },
+              ],
+            },
           ]
         : []),
-      {
-        // Cache public/ static files for 1 day (audio files are developer-local so no long TTL)
-        source: '/(.+)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=86400, stale-while-revalidate=604800',
-          },
-        ],
-      },
     ]
   },
 }
