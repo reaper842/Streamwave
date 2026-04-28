@@ -117,6 +117,8 @@ GET    /api/v1/users/me                     → current user profile + library c
 PATCH  /api/v1/users/me                     → update display_name (and optionally avatar_url)
 GET    /api/v1/users/me/notifications        → fetch (or upsert-create with defaults) NotificationPreferences
 PATCH  /api/v1/users/me/notifications        → partial update of notification flags (all optional booleans)
+GET    /health                               → liveness probe (always 200, no dep checks) — for load balancers
+GET    /api/v1/health                        → readiness probe; checks Postgres + Redis + Meilisearch; 200 ok / 503 degraded
 ```
 
 ---
@@ -154,8 +156,8 @@ PATCH  /api/v1/users/me/notifications        → partial update of notification 
 
 ### Current Test Coverage
 
-- 185/185 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud + 14 search + 28 content (tracks/albums/artists/browse)
-- 84/84 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit + 29 useLibraryStore unit + 16 useSearchStore unit
+- 219/219 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud + 14 search + 28 content (tracks/albums/artists/browse) + 9 notifications + 23 users
+- 118/118 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit + 29 useLibraryStore unit + 16 useSearchStore unit
 - Run server tests: `npm run test` | Run client tests: `npm run test:client`
 - Search tests require Meilisearch running (`docker compose up -d`) — use `buildSearchApp()` factory
 - Content tests (`content.test.ts`) use `buildApp()` factory (includes tracks/albums/artists/browse routes since Session 19)
@@ -208,3 +210,5 @@ PATCH  /api/v1/users/me/notifications        → partial update of notification 
 - **CORS must list methods explicitly**: `@fastify/cors` v11 + Fastify 5 — always pass `methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS']` and `allowedHeaders: ['Content-Type','Authorization','Cookie']`. DELETE/PUT/PATCH always require an OPTIONS preflight; if `Access-Control-Allow-Methods` is missing the method, the browser throws `TypeError: Failed to fetch` before the actual request is sent. Also set `preflightContinue: false` and `optionsSuccessStatus: 204`.
 - **`request.body ?? {}` before `safeParse` in optional-body PATCH handlers** — the lenient JSON parser (Session 24 workaround) returns `null` for empty/missing bodies. `z.object({}).safeParse(null)` fails. Apply `?? {}` before parsing in PATCH routes that allow an empty body.
 - **Prisma upsert for user-settings rows** — `upsert({ where: { user_id }, create: { ...defaults }, update: {} })` is the get-or-create pattern for rows that auto-provision on first access (e.g., NotificationPreferences). For update handlers, pass partial data directly as `update`.
+- **Structured logging pattern** — `onResponse` hook in `server/index.ts` emits `{ requestId, method, url, statusCode, responseTime, userId }` via `fastify.log.info()`. Use `request.id` (Fastify auto-assigns) and `reply.elapsedTime` (ms since request received). `userId` is `request.user?.id ?? null`.
+- **Two health endpoints** — `/health` is a liveness probe (always 200, no dep checks; used by Railway container health). `/api/v1/health` is a readiness probe (checks Postgres/Redis/Meilisearch; returns 503 when any dep is down). Use the readiness probe for uptime monitoring and deploy gates.
