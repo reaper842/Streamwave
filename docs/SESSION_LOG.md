@@ -955,3 +955,78 @@ Full audit of all client-rendered components confirmed no code-level hydration m
 - `.next/` — deleted to clear Turbopack disk cache (not tracked by git)
 
 **Result:** `npm run build` → 0 errors. All three browser/server cache layers are now fixed. No code-level hydration issues exist in source. The issue cannot recur unless a new `Cache-Control` override is added to `next.config.ts` without a `NODE_ENV === 'production'` guard.
+
+---
+
+## Session 44 — 2026-04-28: M9 Start — CI/CD Workflows + Structured Logging + Health Endpoint
+
+**Goal:** Begin Milestone 9 (Deployment & Launch). Implement the code-side deliverables for CI/CD, observability, and backend health checks.
+
+**What was done:**
+
+### GitHub Actions CI/CD Workflows (`.github/workflows/`)
+
+Three workflows created:
+
+**`ci.yml`** — runs on every push and PR (all branches):
+
+- Service containers: PostgreSQL 16, Redis 7, Meilisearch 1.6 (with health checks)
+- Steps: checkout → setup Node 20 → `npm ci --legacy-peer-deps` → lint → tsc (frontend) → tsc -p tsconfig.server.json (backend) → `prisma migrate deploy` → server tests (219) → client tests (118) → `next build`
+- Uses `concurrency` with `cancel-in-progress: true` so stale pushes don't block PRs
+- Build step runs with `NODE_ENV: production` to correctly test prod-only config
+
+**`e2e.yml`** — runs on pushes/PRs to `main`:
+
+- Service containers: same stack as CI
+- Steps: install → playwright install chromium → DB migrate → seed → Meilisearch sync → start dev server in background → `npx wait-on` polls until Next.js (3000) and Fastify (3001/health) are ready → `npm run test:e2e`
+- Uploads `playwright-report/` as artifact (7-day retention) on any outcome
+
+**`deploy.yml`** — runs on pushes to `main`:
+
+- `deploy-frontend` job: installs Vercel CLI → `vercel pull --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (requires `VERCEL_TOKEN` secret)
+- `deploy-backend` job: installs Railway CLI → `railway up --service streamwave-api` (requires `RAILWAY_TOKEN` secret)
+- `run-migrations` job: runs after `deploy-backend`; runs `prisma migrate deploy` against `PRODUCTION_DATABASE_URL` secret
+
+### Structured Request Logging (`server/index.ts`)
+
+Added `onResponse` hook that emits a structured log line after every response:
+
+```json
+{
+  "requestId": "req-abc123",
+  "method": "GET",
+  "url": "/api/v1/tracks/123",
+  "statusCode": 200,
+  "responseTime": 42,
+  "userId": "user-uuid-or-null"
+}
+```
+
+Uses Fastify's built-in `request.id` (auto-assigned per request) and `reply.elapsedTime` (ms since request received). `userId` is `null` for unauthenticated requests.
+
+### Health Check Endpoint (`server/index.ts`)
+
+Added `GET /api/v1/health` — readiness probe that actively checks all three dependencies:
+
+- PostgreSQL: `prisma.$queryRaw\`SELECT 1\``
+- Redis: `fastify.redis.ping()`
+- Meilisearch: `fastify.meili.health()`
+
+Returns `200 { status: 'ok', checks: { postgres: 'ok', redis: 'ok', meilisearch: 'ok' } }` when all healthy, or `503 { status: 'degraded', checks: { ... } }` with per-dependency status when any fails. The existing `/health` (liveness probe, no deps) is retained for load-balancer heartbeat checks.
+
+**Files changed:**
+
+- `.github/workflows/ci.yml` (new) — CI pipeline
+- `.github/workflows/e2e.yml` (new) — E2E pipeline
+- `.github/workflows/deploy.yml` (new) — Deploy pipeline (Vercel + Railway)
+- `server/index.ts` — `onResponse` logging hook + `GET /api/v1/health` readiness endpoint
+
+**Key technical notes for future sessions:**
+
+- **`ci.yml` needs `--legacy-peer-deps`** — `next-auth@beta` has a peer dep conflict with Next.js 16. Always pass this flag to `npm ci` in CI.
+- **`deploy.yml` required secrets** — `VERCEL_TOKEN`, `RAILWAY_TOKEN`, `PRODUCTION_DATABASE_URL` must be added to the GitHub repository secrets before the deploy workflow can run. Set these in GitHub → Settings → Secrets → Actions.
+- **`wait-on` for E2E** — `npx wait-on` polls until a URL is reachable. Used in `e2e.yml` to block Playwright until both Next.js (`:3000`) and Fastify (`/health` endpoint) are accepting connections. No need to add to package.json.
+- **`reply.elapsedTime`** — Fastify built-in, available in `onResponse` hooks. Returns milliseconds since the request was received. No external timing needed.
+- **`/api/v1/health` is a readiness probe** — it returns 503 if any dependency is down. Railway and other hosting platforms should use this URL for health checks, not `/health` (which just returns 200 always and serves as a liveness probe).
+
+**Result:** `npm run build` → 0 errors | 219/219 server tests + 118/118 client tests — all pass | Commits: `9298a5f` (CI/CD), `82198db` (logging + health)
