@@ -144,10 +144,10 @@ class AudioEngine {
     this.stopProgressTimer()
 
     if (this.state.repeatMode === 'one') {
-      this.howl?.seek(0)
-      this.howl?.play()
-      this.startProgressTimer()
-      this.setState({ isPlaying: true, positionMs: 0 })
+      // Defer out of the onend callback so Howler.js finishes its own cleanup
+      // before we unload the current Howl and create a fresh one.
+      const index = this.state.queueIndex
+      queueMicrotask(() => this.playAtIndex(index))
       return
     }
 
@@ -159,7 +159,10 @@ class AudioEngine {
       return
     }
 
-    this.playAtIndex(nextIndex)
+    // Defer for the same reason as repeat-one: calling unload() on this.howl
+    // from within its own onend callback leaves Howler.js in a state where
+    // the replacement Howl silently fails to start.
+    queueMicrotask(() => this.playAtIndex(nextIndex))
   }
 
   private getNextIndex(): number {

@@ -329,7 +329,7 @@ describe('AudioEngine — handleTrackEnd (via _triggerEnd)', () => {
     engine.clearQueue()
   })
 
-  it('repeat-one: restarts track on end', () => {
+  it('repeat-one: restarts track on end', async () => {
     engine.setRepeat('one')
     engine.play([makeTrack('t1'), makeTrack('t2')], 0)
     const howl = getInstance(0)
@@ -337,10 +337,13 @@ describe('AudioEngine — handleTrackEnd (via _triggerEnd)', () => {
     vi.clearAllMocks()
     clearInstances()
     howl._triggerEnd()
-    // Should seek to 0 and play again without changing queueIndex
-    expect(mockHowlSeek).toHaveBeenCalledWith(0)
-    expect(mockHowlPlay).toHaveBeenCalledTimes(1)
+    // playAtIndex is deferred via queueMicrotask — drain before asserting
+    await Promise.resolve()
     expect(engine.getState().queueIndex).toBe(0)
+    expect(engine.getState().currentTrack?.id).toBe('t1')
+    expect(capturedInstances).toHaveLength(1) // new Howl created for same track
+    expect(mockHowlUnload).toHaveBeenCalledTimes(1) // old howl unloaded
+    expect(mockHowlSeek).not.toHaveBeenCalled() // no seek on old howl
   })
 
   it('no repeat: stops at end of single-track queue', () => {
@@ -348,26 +351,29 @@ describe('AudioEngine — handleTrackEnd (via _triggerEnd)', () => {
     const howl = getInstance(0)
     howl._triggerLoad()
     howl._triggerEnd()
+    // setState is called synchronously (no playAtIndex, no queueMicrotask)
     expect(engine.getState().isPlaying).toBe(false)
   })
 
-  it('advances to next track at end (no repeat)', () => {
+  it('advances to next track at end (no repeat)', async () => {
     engine.play([makeTrack('t1'), makeTrack('t2')], 0)
     const howl = getInstance(0)
     howl._triggerLoad()
     howl._triggerEnd()
-    // Should have advanced to t2
+    // playAtIndex is deferred via queueMicrotask — drain before asserting
+    await Promise.resolve()
     expect(engine.getState().currentTrack?.id).toBe('t2')
     expect(engine.getState().queueIndex).toBe(1)
   })
 
-  it('repeat-all: wraps from last track to first', () => {
+  it('repeat-all: wraps from last track to first', async () => {
     engine.play([makeTrack('t1'), makeTrack('t2')], 1) // start at t2
     engine.setRepeat('all')
     const howl = getInstance(0)
     howl._triggerLoad()
     howl._triggerEnd()
-    // Should wrap to t1 (index 0)
+    // playAtIndex is deferred via queueMicrotask — drain before asserting
+    await Promise.resolve()
     expect(engine.getState().currentTrack?.id).toBe('t1')
     expect(engine.getState().queueIndex).toBe(0)
   })
