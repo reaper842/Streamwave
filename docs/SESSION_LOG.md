@@ -1030,3 +1030,47 @@ Returns `200 { status: 'ok', checks: { postgres: 'ok', redis: 'ok', meilisearch:
 - **`/api/v1/health` is a readiness probe** — it returns 503 if any dependency is down. Railway and other hosting platforms should use this URL for health checks, not `/health` (which just returns 200 always and serves as a liveness probe).
 
 **Result:** `npm run build` → 0 errors | 219/219 server tests + 118/118 client tests — all pass | Commits: `9298a5f` (CI/CD), `82198db` (logging + health)
+
+---
+
+## Session 45 — 2026-04-29: Bug fix — repeat-one not replaying current song
+
+**Goal:** Fix repeat-one mode: when a song ends with repeat-one active, replay the same song.
+
+**What was done:**
+
+- `src/lib/audio/engine.ts` — replaced `howl.seek(0) + howl.play()` in the `repeat-one` branch of `handleTrackEnd` with `playAtIndex(queueIndex)`. This creates a fresh Howl for the same track URL, which is the only reliable way to restart audio in Howler.js html5 mode after the native `ended` event fires.
+- `src/lib/audio/__tests__/engine.playback.test.ts` — updated the `repeat-one: restarts track on end` test: no longer asserts `seek(0)` and `play()` on old Howl; now asserts new Howl created, old Howl unloaded, `queueIndex` unchanged, no `seek` call.
+
+**What was NOT completed (carry to next session):**
+
+- Repeat-all (wrap to first song) reported still broken → fixed in Session 46.
+
+**Key technical notes for future sessions:**
+
+- **`seek(0) + play()` on an ended html5 Howl is unreliable** — after the native `ended` event fires, the `<audio>` element's internal state prevents a simple seek+play from restarting it. Always use `playAtIndex` (creates a fresh Howl) to restart any track.
+
+**Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors
+
+---
+
+## Session 46 — 2026-04-29: Bug fix — repeat-all not wrapping to first song
+
+**Goal:** Fix repeat-all mode: when the last song ends with repeat-all active, replay from the first song in the queue.
+
+**What was done:**
+
+- `src/lib/audio/engine.ts` — wrapped both `playAtIndex` calls in `handleTrackEnd` with `queueMicrotask`. This defers the entire `playAtIndex` execution (including `this.howl?.unload()`) to OUTSIDE the Howler.js `onend` callback, so Howler.js can finish its own `_ended` cleanup before we destroy and replace the Howl.
+- `src/lib/audio/__tests__/engine.playback.test.ts` — made three `handleTrackEnd` tests async (`repeat-one`, `advances to next track`, `repeat-all: wraps`) and added `await Promise.resolve()` to drain the microtask queue before asserting state. The `no repeat: stops at end` test needed no change (it only calls `setState`, no deferred `playAtIndex`).
+
+**What was NOT completed (carry to next session):**
+
+- M9 infrastructure provisioning (Vercel, Railway, R2) — still pending.
+
+**Key technical notes for future sessions:**
+
+- **Do NOT call `playAtIndex` (or any `howl.unload()`) synchronously from within a Howler.js event callback** — specifically `onend`. Howler.js has not finished processing the `_ended` event when your callback runs; calling `unload()` on the still-active Howl leaves internal state inconsistent and silently blocks the new Howl from starting. Always defer via `queueMicrotask`.
+- **`queueMicrotask` in tests** — use `await Promise.resolve()` inside an `async` test to drain any pending `queueMicrotask` callbacks before asserting engine state.
+- **Normal track advance was also affected** — wrapping ALL `playAtIndex` calls (not just repeat modes) is safer and has no perceptible audio gap since microtasks execute before the next browser paint.
+
+**Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors | Commit: `bb1507d`

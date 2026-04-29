@@ -100,6 +100,11 @@ Singleton class wrapping Howler.js. Must support:
 
 **State flows through `usePlayerStore`.** Components NEVER interact with Howler directly.
 
+**Critical Howler.js html5 gotchas (Sessions 45–46):**
+
+- **Never call `playAtIndex` / `howl.unload()` synchronously from within `onend`** — Howler.js is still running its `_ended` cleanup when your callback fires. Calling `unload()` on the active Howl from inside its own callback corrupts Howler internal state and silently blocks the replacement Howl. Always use `queueMicrotask(() => this.playAtIndex(index))` to defer out of the callback.
+- **`seek(0) + play()` on an ended html5 Howl does not restart playback** — the `<audio>` element stays in "ended" state. Use `playAtIndex(currentIndex)` to create a fresh Howl instead.
+
 ---
 
 ## Auth (Frontend Side)
