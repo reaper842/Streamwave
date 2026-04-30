@@ -1074,3 +1074,63 @@ Returns `200 { status: 'ok', checks: { postgres: 'ok', redis: 'ok', meilisearch:
 - **Normal track advance was also affected** — wrapping ALL `playAtIndex` calls (not just repeat modes) is safer and has no perceptible audio gap since microtasks execute before the next browser paint.
 
 **Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors | Commit: `bb1507d`
+
+---
+
+## Session 47 — 2026-04-30: Deep analysis — repeat still broken after sessions 45-46
+
+**Goal:** Find the root cause of why repeat (both one and all) still doesn't work in the browser despite the sessions 45-46 fixes.
+
+**What was done:**
+
+- Deep dive into Howler.js source (`node_modules/howler/dist/howler.js`).
+- **Key discovery**: Howler's `_emit` function fires ALL event callbacks (`onend`, `onload`, etc.) via `setTimeout(fn, 0)`. This means `onend` fires as a **separate macro-task**, well AFTER Howler's own `_ended` cleanup (which called `stop()`). Therefore the `queueMicrotask` added in Session 46 is technically unnecessary (since `onend` is already async), but harmless.
+- Traced the full HTML5 audio lifecycle: `<audio>` 'ended' event → Howler `_endTimers[id]` listener → `_ended(sound)` → `_emit('end', ...)` → our `onend` via `setTimeout` → `handleTrackEnd()` → `queueMicrotask` → `playAtIndex`.
+- Identified that `pause()` in Howler calls `_clearTimer` (removes end listener) and `play()` re-registers it — this is correct behavior.
+- Identified a **code smell** in `playAtIndex`: the dual-path `once('load', cb)` + `if (state() === 'loaded')` had duplicate code blocks. While logically correct (the `once` never fires on an already-loaded Howl), there was no guard preventing the `once` callback from running after a newer `playAtIndex` call superseded the Howl.
+
+**What was NOT completed:**
+
+- No code changes made this session — purely investigative.
+
+**Key technical notes for future sessions:**
+
+- **Howler `_emit` uses `setTimeout(fn, 0)`** — ALL Howler callbacks (`onend`, `onload`, etc.) fire in separate macro-tasks. By the time `onend` runs, Howler has already fully completed its `_ended` cleanup. The `queueMicrotask` in `handleTrackEnd` is a belt-and-suspenders measure.
+- **Root cause of browser failure unconfirmed** — likely either Turbopack stale cache (`.next/` not cleared since session 46) or the dual-path `playAtIndex` having an edge case. Fixed in session 48.
+
+**Result:** No code changes. 219/219 server + 118/118 client tests unchanged.
+
+---
+
+## Session 48 — 2026-04-30: Bug fix — repeat playback guard in playAtIndex
+
+**Goal:** Fix the recurring repeat-not-working issue by addressing the `playAtIndex` dual code path.
+
+**Root cause identified:**
+
+The `playAtIndex` method had two separate code blocks that could call `play()`:
+
+1. `newHowl.once('load', cb)` — for still-loading Howls
+2. `if (newHowl.state() === 'loaded') { ... }` — for pre-buffered/cached Howls
+
+Both blocks were duplicate and there was **no guard** preventing the `once('load', cb)` callback from running after a newer `playAtIndex` call had already replaced `this.howl`. If rapid track changes occurred (e.g., user clicks next while repeat fires), the stale callback could call `play()` on an already-unloaded Howl.
+
+**What was done:**
+
+- `src/lib/audio/engine.ts` — replaced the dual `once`/`if` pattern with a single `onReady` function:
+  - One function handles both cases (loaded and loading)
+  - Guard `if (this.howl !== newHowl) return` prevents stale callbacks from playing a superseded Howl
+  - `onReady()` is called directly when state is 'loaded', or registered via `once('load', onReady)` when loading
+  - Eliminated ~15 lines of duplicate code
+
+**What was NOT completed (carry to next session):**
+
+- M9 infrastructure provisioning (Vercel, Railway, R2) — still pending.
+
+**Key technical notes for future sessions:**
+
+- **Stale Howl guard in `onReady`** — `if (this.howl !== newHowl) return` prevents a `once('load', cb)` callback registered on an old Howl from accidentally playing it after a newer `playAtIndex` call replaced `this.howl`.
+- **Single code path over dual path** — when `state() === 'loaded'`, call the handler directly; when 'loading', register via `once`. Never register `once` AND then also check `if (loaded)` in the same function — pick one path.
+- **Clear `.next/`** — if repeat still appears broken in the browser after these fixes, the first step is always `rm -rf .next && npm run dev` to rule out Turbopack disk cache serving stale JS.
+
+**Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors
