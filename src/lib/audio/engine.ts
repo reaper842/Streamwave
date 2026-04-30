@@ -229,7 +229,10 @@ class AudioEngine {
       error: null,
     })
 
-    newHowl.once('load', () => {
+    // Single callback for both the already-loaded and the still-loading cases.
+    // Guard: bail if this howl was superseded by a newer playAtIndex call.
+    const onReady = () => {
+      if (this.howl !== newHowl) return
       newHowl.play()
       this.setState({
         isLoading: false,
@@ -238,18 +241,14 @@ class AudioEngine {
       })
       this.startProgressTimer()
       this.updateMediaSession(track)
-    })
+    }
 
-    // If already loaded (cached), trigger manually
     if (newHowl.state() === 'loaded') {
-      newHowl.play()
-      this.setState({
-        isLoading: false,
-        isPlaying: true,
-        durationMs: newHowl.duration() * 1000,
-      })
-      this.startProgressTimer()
-      this.updateMediaSession(track)
+      // Pre-buffered: already loaded, start immediately
+      onReady()
+    } else {
+      // Fresh howl: wait for load before playing
+      newHowl.once('load', onReady)
     }
   }
 
