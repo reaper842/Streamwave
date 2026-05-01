@@ -48,7 +48,8 @@ const MAX_RETRIES = 3
  */
 class AudioEngine {
   private howl: Howl | null = null
-  private nextHowl: Howl | null = null // pre-buffered next track
+  private nextHowl: Howl | null = null // pre-buffered track
+  private nextHowlIndex: number = -1 // queue index of the pre-buffered track
   private state: AudioEngineState = {
     currentTrack: null,
     isPlaying: false,
@@ -205,13 +206,15 @@ class AudioEngine {
 
     // Use pre-buffered howl if available and it matches this track
     let newHowl: Howl
-    if (this.nextHowl && index === this.getNextIndex()) {
+    if (this.nextHowl && this.nextHowlIndex === index) {
       newHowl = this.nextHowl
       this.nextHowl = null
+      this.nextHowlIndex = -1
     } else {
       if (this.nextHowl) {
         this.nextHowl.unload()
         this.nextHowl = null
+        this.nextHowlIndex = -1
       }
       newHowl = this.buildHowl(track.streamUrl)
     }
@@ -253,12 +256,16 @@ class AudioEngine {
   }
 
   private prebufferNext() {
-    const nextIndex = this.getNextIndex()
-    if (nextIndex === -1) return
-    const nextTrack = this.state.queue[nextIndex]
+    // For repeat-one, pre-buffer the current track so it restarts seamlessly.
+    // For all other modes, pre-buffer the upcoming next track.
+    const targetIndex =
+      this.state.repeatMode === 'one' ? this.state.queueIndex : this.getNextIndex()
+    if (targetIndex === -1) return
+    const nextTrack = this.state.queue[targetIndex]
     if (!nextTrack) return
 
     this.nextHowl = this.buildHowl(nextTrack.streamUrl)
+    this.nextHowlIndex = targetIndex
   }
 
   // ── Media Session API ─────────────────────────────────────────────────────────
@@ -292,6 +299,7 @@ class AudioEngine {
     if (this.nextHowl) {
       this.nextHowl.unload()
       this.nextHowl = null
+      this.nextHowlIndex = -1
     }
 
     const queue = [...tracks]
@@ -436,6 +444,7 @@ class AudioEngine {
     if (this.nextHowl) {
       this.nextHowl.unload()
       this.nextHowl = null
+      this.nextHowlIndex = -1
     }
     this.stopProgressTimer()
     this.shuffleOrder = []
