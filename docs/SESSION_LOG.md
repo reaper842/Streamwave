@@ -1134,3 +1134,39 @@ Both blocks were duplicate and there was **no guard** preventing the `once('load
 - **Clear `.next/`** — if repeat still appears broken in the browser after these fixes, the first step is always `rm -rf .next && npm run dev` to rule out Turbopack disk cache serving stale JS.
 
 **Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors
+
+---
+
+## Session 49 — 2026-05-01: Bug fix — repeat pre-buffer targeting wrong track
+
+**Goal:** Fix a latent pre-buffer bug where `prebufferNext()` was pre-loading the wrong track for repeat-one mode, causing an unnecessary loading gap on every repeat cycle.
+
+**Root cause identified:**
+
+`prebufferNext()` unconditionally called `getNextIndex()`, which for `repeatMode === 'one'` returns the track _after_ the current one — not the current track. So every repeat-one cycle:
+
+1. Pre-buffer created a Howl for track N+1 (wrong track)
+2. `playAtIndex(N)` was called for repeat
+3. `index (N) !== this.getNextIndex() (N+1)` → pre-buffered Howl discarded, fresh Howl created for track N
+4. Net effect: pre-buffer never helped for repeat-one — always a fresh load with latency
+
+A secondary fragility: `playAtIndex` matched the pre-buffer via `index === this.getNextIndex()`, which re-evaluates `getNextIndex()` at call time with the _current_ engine state — potentially stale if `queueIndex` had already advanced.
+
+**What was done:**
+
+- `src/lib/audio/engine.ts`:
+  - Added `private nextHowlIndex: number = -1` field to explicitly track which queue index the pre-buffered Howl is for
+  - `prebufferNext()` — added branch: when `repeatMode === 'one'`, `targetIndex = queueIndex` (current track); otherwise `targetIndex = getNextIndex()`. Sets `this.nextHowlIndex = targetIndex` after creating the Howl
+  - `playAtIndex()` — replaced `index === this.getNextIndex()` with `this.nextHowlIndex === index`; added `this.nextHowlIndex = -1` reset in both branches (consume and discard)
+  - `play()` and `clearQueue()` — added `this.nextHowlIndex = -1` alongside every `this.nextHowl = null` to keep fields in sync
+
+**What was NOT completed (carry to next session):**
+
+- M9 infrastructure provisioning (Vercel, Railway, R2) — still pending.
+
+**Key technical notes for future sessions:**
+
+- **`nextHowlIndex` is the source of truth for pre-buffer match** — never re-derive the pre-buffer target by calling `getNextIndex()` at consumption time; the state may have changed between pre-buffer creation and consumption.
+- **Repeat-one pre-buffers current track** — for seamless looping, the pre-buffer should hold a fresh Howl for the _current_ track (same index), not the next one. The `playAtIndex` stale-Howl guard (`if (this.howl !== newHowl) return`) still applies and prevents double-play if state races.
+
+**Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors | Commit: `77c3914`
