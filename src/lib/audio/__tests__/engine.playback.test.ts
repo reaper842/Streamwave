@@ -377,6 +377,134 @@ describe('AudioEngine — handleTrackEnd (via _triggerEnd)', () => {
     expect(engine.getState().currentTrack?.id).toBe('t1')
     expect(engine.getState().queueIndex).toBe(0)
   })
+
+  it('repeat-one: full lifecycle — play() called after new howl loads', async () => {
+    engine.setRepeat('one')
+    engine.play([makeTrack('t1'), makeTrack('t2')], 0)
+    const initialHowl = getInstance(0)
+    initialHowl._triggerLoad()
+    expect(engine.getState().isPlaying).toBe(true)
+
+    vi.clearAllMocks()
+    clearInstances()
+
+    initialHowl._triggerEnd()
+    await Promise.resolve() // drain queueMicrotask → playAtIndex(0) runs
+
+    // State updated: new Howl for t1, waiting for load
+    expect(engine.getState().queueIndex).toBe(0)
+    expect(engine.getState().currentTrack?.id).toBe('t1')
+    expect(engine.getState().isLoading).toBe(true)
+    expect(engine.getState().isPlaying).toBe(false)
+    expect(capturedInstances).toHaveLength(1) // one new Howl created
+
+    // Trigger load on the new Howl → onReady fires → play() called
+    getInstance(0)._triggerLoad()
+
+    expect(mockHowlPlay).toHaveBeenCalledTimes(1)
+    expect(engine.getState().isPlaying).toBe(true)
+    expect(engine.getState().isLoading).toBe(false)
+  })
+
+  it('repeat-all: full lifecycle — play() called after new howl loads', async () => {
+    engine.play([makeTrack('t1'), makeTrack('t2')], 1) // start at last track
+    engine.setRepeat('all')
+    const initialHowl = getInstance(0)
+    initialHowl._triggerLoad()
+    expect(engine.getState().isPlaying).toBe(true)
+
+    vi.clearAllMocks()
+    clearInstances()
+
+    initialHowl._triggerEnd()
+    await Promise.resolve() // drain queueMicrotask → playAtIndex(0) runs
+
+    // State updated: new Howl for t1 (wrapped from last to first), waiting for load
+    expect(engine.getState().queueIndex).toBe(0)
+    expect(engine.getState().currentTrack?.id).toBe('t1')
+    expect(engine.getState().isLoading).toBe(true)
+    expect(engine.getState().isPlaying).toBe(false)
+    expect(capturedInstances).toHaveLength(1) // one new Howl created
+
+    // Trigger load on the new Howl → onReady fires → play() called
+    getInstance(0)._triggerLoad()
+
+    expect(mockHowlPlay).toHaveBeenCalledTimes(1)
+    expect(engine.getState().isPlaying).toBe(true)
+    expect(engine.getState().isLoading).toBe(false)
+  })
+
+  it('repeat-one: plays immediately when new howl is already loaded (pre-buffer path)', async () => {
+    engine.setRepeat('one')
+    engine.play([makeTrack('t1')], 0)
+    const initialHowl = getInstance(0)
+    initialHowl._triggerLoad()
+    expect(engine.getState().isPlaying).toBe(true)
+
+    vi.clearAllMocks()
+    clearInstances()
+    // Simulate pre-buffered howl in loaded state
+    mockHowlState.mockReturnValue('loaded')
+
+    initialHowl._triggerEnd()
+    await Promise.resolve()
+
+    // onReady() called immediately (state==='loaded' path) — play() already fired
+    expect(engine.getState().queueIndex).toBe(0)
+    expect(engine.getState().currentTrack?.id).toBe('t1')
+    expect(engine.getState().isPlaying).toBe(true)
+    expect(engine.getState().isLoading).toBe(false)
+    expect(mockHowlPlay).toHaveBeenCalledTimes(1)
+  })
+
+  it('repeat-all: plays immediately when new howl is already loaded (pre-buffer path)', async () => {
+    engine.play([makeTrack('t1'), makeTrack('t2')], 1)
+    engine.setRepeat('all')
+    const initialHowl = getInstance(0)
+    initialHowl._triggerLoad()
+    expect(engine.getState().isPlaying).toBe(true)
+
+    vi.clearAllMocks()
+    clearInstances()
+    // Simulate pre-buffered howl in loaded state
+    mockHowlState.mockReturnValue('loaded')
+
+    initialHowl._triggerEnd()
+    await Promise.resolve()
+
+    // onReady() called immediately (state==='loaded' path) — play() already fired
+    expect(engine.getState().queueIndex).toBe(0)
+    expect(engine.getState().currentTrack?.id).toBe('t1')
+    expect(engine.getState().isPlaying).toBe(true)
+    expect(engine.getState().isLoading).toBe(false)
+    expect(mockHowlPlay).toHaveBeenCalledTimes(1)
+  })
+
+  it('stale-howl guard: onReady is a no-op if a newer playAtIndex supersedes it', async () => {
+    engine.play([makeTrack('t1'), makeTrack('t2')], 0)
+    engine.setRepeat('all')
+    const initialHowl = getInstance(0)
+    initialHowl._triggerLoad()
+
+    vi.clearAllMocks()
+    clearInstances()
+
+    initialHowl._triggerEnd()
+    await Promise.resolve() // playAtIndex(1) runs, this.howl = newHowl1
+
+    const newHowl1 = getInstance(0)
+    // Supersede: start a completely new play() before newHowl1 loads
+    engine.play([makeTrack('t3')], 0)
+    clearInstances()
+    vi.clearAllMocks()
+
+    // Now trigger load on the superseded newHowl1 — onReady guard should fire
+    newHowl1._triggerLoad()
+
+    // play() should NOT have been called for the superseded howl
+    expect(mockHowlPlay).not.toHaveBeenCalled()
+    expect(engine.getState().currentTrack?.id).toBe('t3')
+  })
 })
 
 describe('AudioEngine — error handling', () => {
