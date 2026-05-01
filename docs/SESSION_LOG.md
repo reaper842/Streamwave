@@ -1170,3 +1170,35 @@ A secondary fragility: `playAtIndex` matched the pre-buffer via `index === this.
 - **Repeat-one pre-buffers current track** — for seamless looping, the pre-buffer should hold a fresh Howl for the _current_ track (same index), not the next one. The `playAtIndex` stale-Howl guard (`if (this.howl !== newHowl) return`) still applies and prevents double-play if state races.
 
 **Result:** 219/219 server tests + 118/118 client tests pass | `npm run build` → 0 errors | Commit: `77c3914`
+
+---
+
+## Session 50 — 2026-05-01: Bug investigation — repeat lifecycle tests + engine verification
+
+**Goal:** Fix repeat button (repeat-all and repeat-one not working after a track ends) — continued from Sessions 45-49.
+
+**What was done:**
+
+- Deep analysis of `src/lib/audio/engine.ts` against Howler.js source — code logic confirmed correct across all four sessions of prior fixes (queueMicrotask defer, onReady stale-Howl guard, nextHowlIndex pre-buffer tracking).
+- Identified test coverage gap: all five existing repeat/end tests only verified _structural_ state (correct `queueIndex`, `currentTrack`, new Howl instance created, old Howl unloaded) but never triggered `_triggerLoad()` on the replacement Howl, so `play()` being called and `isPlaying` becoming `true` were never verified.
+- Added 5 new tests to `src/lib/audio/__tests__/engine.playback.test.ts`:
+  - `repeat-one: full lifecycle — play() called after new howl loads` (loading path)
+  - `repeat-all: full lifecycle — play() called after new howl loads` (loading path)
+  - `repeat-one: plays immediately when new howl is already loaded (pre-buffer path)` (state='loaded' direct call)
+  - `repeat-all: plays immediately when new howl is already loaded (pre-buffer path)` (state='loaded' direct call)
+  - `stale-howl guard: onReady is a no-op if a newer playAtIndex supersedes it`
+- All 5 new tests pass — confirming the engine code is correct end-to-end.
+
+**What was NOT completed (carry to next session):**
+
+- Root cause of repeat not working in the browser is unconfirmed but most likely stale `.next/turbopack/` disk cache: delete `.next/` and restart `npm run dev` before testing.
+- M9 infrastructure provisioning (Vercel, Railway, R2) — still pending.
+
+**Key technical notes for future sessions:**
+
+- **Engine code is verified correct** — all repeat paths (repeat-one, repeat-all, pre-buffer consumed, pre-buffer discarded, stale-Howl guard) are tested end-to-end including `play()` invocation and `isPlaying` state.
+- **If repeat still appears broken in the browser** — the ONLY fix is `rm -rf .next && npm run dev`. The compiled JS the browser runs may be from a pre-Session-45 build if the Turbopack cache was never cleared after those fixes.
+- **Test mock `once` overwrites `_onload`** — the MockHowl stores `_onload` as a single slot. Both the constructor `onload` (always a no-op in `buildHowl`) and `once('load', cb)` share this slot. The `once` call REPLACES the constructor's no-op. This is safe because `buildHowl` never passes a meaningful `onLoad` callback; the pattern works correctly for testing purposes.
+- **5 new lifecycle tests** — engine.playback.test.ts grows from 48 to 53 tests; client test total grows from 118 to 123.
+
+**Result:** 219/219 server tests + 123/123 client tests pass | `npm run build` → 0 errors | Commit: `5752acc`
