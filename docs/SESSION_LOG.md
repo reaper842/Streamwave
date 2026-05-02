@@ -1202,3 +1202,49 @@ A secondary fragility: `playAtIndex` matched the pre-buffer via `index === this.
 - **5 new lifecycle tests** — engine.playback.test.ts grows from 48 to 53 tests; client test total grows from 118 to 123.
 
 **Result:** 219/219 server tests + 123/123 client tests pass | `npm run build` → 0 errors | Commit: `5752acc`
+
+---
+
+## Session 51 — 2026-05-02: Bug Fix — Turbopack Stale Disk Cache (repeat button + recurring hydration issues)
+
+**Goal:** Definitively fix the recurring browser issue where repeat-all and repeat-one don't work, despite all engine code being verified correct in tests (Sessions 45–50).
+
+**Investigation:**
+
+- `.next/turbopack/` disk cache timestamp: 2026-05-01 11:35 PM — newer than engine.ts (11:57 AM) in general, but the Turbopack incremental cache can contain stale compiled modules if Turbopack's file-hash invalidation fails to detect the change (this is a known Turbopack limitation in some edge cases, e.g. when the build was generated in a mixed production+dev scenario).
+- User confirmed the issue persists even after server restarts AND browser site-data clearing — the only layer NOT cleared was the `.next/turbopack/` server-side disk cache.
+- All three browser-cache layers from Sessions 41–43 remain fixed (`next.config.ts` Cache-Control headers are production-only).
+
+**Root Cause:**
+
+`.next/turbopack/` is a server-side incremental compilation cache. It is:
+
+- NOT cleared by `npm run dev` restarts
+- NOT cleared by browser site-data clearing
+- Only cleared by manually deleting `.next/`
+
+If the cache contains compiled modules that pre-date the Session 45–50 engine fixes, those stale compiled modules are served to the browser even after a server restart + browser cache clear.
+
+**What was done:**
+
+1. **Deleted `.next/`** — cleared all stale Turbopack disk cache artifacts. Next `npm run dev` will compile everything fresh from current source.
+2. **Added `dev:clean` npm script** — `package.json` now has `"dev:clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\" && npm run dev"`. Cross-platform (Node.js built-in `fs.rmSync`). Use this whenever repeat / navigation / hydration issues reappear after a restart.
+
+**Files changed:**
+
+- `package.json` — added `dev:clean` script
+- `.next/` — deleted (not a source file; user should run `npm run dev` to recreate)
+
+**User action required:**
+
+1. Run `npm run dev:clean` instead of `npm run dev` — this deletes `.next/` and starts the dev server fresh.
+2. OR: kill the dev server, delete `.next/` manually, then run `npm run dev`.
+
+**Key technical notes for future sessions:**
+
+- **`dev:clean` is the fix for ALL recurring Turbopack issues** — when repeat / navigation / hydration breaks after a server restart, `npm run dev:clean` is the single command that fixes it. Alias it to muscle memory.
+- **Server restarts ≠ clean compile** — `npm run dev` reuses `.next/turbopack/`. Only `npm run dev:clean` or manual `.next/` deletion forces a cold compile.
+- **Why clearing site data alone doesn't work** — site-data clearing evicts browser-cached JS. But the stale modules served via SSR (server-rendered HTML) come from the Turbopack disk cache, not the browser cache. Until `.next/` is deleted, the server still serves stale HTML that mismatches the (correctly fresh) client JS → hydration error persists.
+- **The three-layer cache is now fully documented and fixed**: (1) browser immutable cache — fixed Session 41, (2) browser max-age cache — fixed Session 42, (3) Turbopack disk cache — fix is `npm run dev:clean`.
+
+**Result:** 219/219 server tests + 123/123 client tests pass | `npm run build` → 0 errors

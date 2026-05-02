@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently --names \"next,fastify\" --prefix-colors \"cyan,magenta\" \"next dev\" \"tsx server/index.ts\"",
+    "dev:clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});console.log('Cleared .next/')}catch(e){}\" && npm run dev",
     "dev:next": "next dev",
     "dev:server": "tsx server/index.ts",
     "build": "next build",
