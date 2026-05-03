@@ -1248,3 +1248,29 @@ If the cache contains compiled modules that pre-date the Session 45–50 engine 
 - **The three-layer cache is now fully documented and fixed**: (1) browser immutable cache — fixed Session 41, (2) browser max-age cache — fixed Session 42, (3) Turbopack disk cache — fix is `npm run dev:clean`.
 
 **Result:** 219/219 server tests + 123/123 client tests pass | `npm run build` → 0 errors
+
+---
+
+## Session 52 — 2026-05-03: Repeat Bug Investigation — Diagnostic Logging
+
+**Goal:** Fix the persistent audio repeat bug (repeat-one and repeat-all do nothing when a track ends in the real browser), which survived all previous fixes from Sessions 45–51.
+
+**What was done:**
+
+- Deep static analysis of `src/lib/audio/engine.ts` — traced every code path through `handleTrackEnd → playAtIndex → onReady → play()`. Engine logic confirmed correct.
+- Extensive reading of Howler.js 2.2.4 source (`node_modules/howler/src/howler.core.js`): confirmed `_emit` uses `setTimeout(fn, 0)` for all callbacks; `_endTimers[sound._id]` (not `_endFn`) is the real end handler for html5 non-loop audio; `_clearTimer` removes both event listeners and timeouts; `_releaseHtml5Audio` only pools elements with `_unlocked = true`; `_loadListener` sets `__default` sprite with real duration.
+- Read `src/lib/audio/__tests__/engine.playback.test.ts` — confirmed mock fires `onend` synchronously, while real Howler fires via `setTimeout(fn, 0)`. All 342 tests (219 server + 123 client) pass including the 5 lifecycle tests from Session 50.
+- Concluded: the bug cannot be identified by static analysis. All code paths look correct. The failure must be in real Howler.js + html5 audio browser behavior.
+- Added `[AUDIO]` diagnostic `console.error` logging to `src/lib/audio/engine.ts` at: `onend` callback (with repeatMode + queueIndex), `handleTrackEnd` (with nextIndex), `playAtIndex` entry (with pre-buffer state), `onReady` (with stale-Howl guard result), and `onplayerror`. This logging will show exactly where the execution stops.
+
+**What was NOT completed (carry to next session):**
+
+- The actual repeat bug fix. The diagnostic logging is in place but has not been tested in the browser yet.
+- **Next step (MUST DO FIRST):** Run `npm run dev:clean`, play a track, enable repeat, wait for track to end, check browser Console tab for `[AUDIO]` messages, identify which log is the last one printed, then fix that specific code path and remove the logging.
+
+**Key technical notes for future sessions:**
+
+- `[AUDIO]` diagnostic logging is in `src/lib/audio/engine.ts` — REMOVE it after the bug is fixed (it uses `console.error` which is forbidden in production code).
+- The most likely scenarios based on analysis: (a) `[AUDIO] onend fired` never appears → Howler's `_endTimers` listener is not firing; (b) `onend` fires but `handleTrackEnd` shows `nextIndex=-1` → repeatMode is `'off'` in the engine despite UI showing 'all'; (c) `[AUDIO] onReady: stale Howl guard fired` appears → `this.howl` was replaced before `onReady` ran; (d) `[AUDIO] onplayerror fired` appears → browser autoplay restriction blocking the repeat play.
+- The test mock fires `onend` synchronously (calls `_onend?.()` directly). Real Howler fires it via `setTimeout(fn, 0)` then our `queueMicrotask`. This timing difference cannot cause a consistent failure but may interact with browser-specific behaviors.
+- All 219 server + 123 client tests pass. 0 build errors.
