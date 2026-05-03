@@ -131,10 +131,17 @@ class AudioEngine {
         }
       },
       onplayerror: (_id, err) => {
+        console.error('[AUDIO] onplayerror fired', err)
         const message = typeof err === 'string' ? err : 'Playback error'
         this.setState({ isPlaying: false, error: message })
       },
       onend: () => {
+        console.error(
+          '[AUDIO] onend fired — repeatMode:',
+          this.state.repeatMode,
+          'queueIndex:',
+          this.state.queueIndex,
+        )
         this.handleTrackEnd()
       },
     })
@@ -148,12 +155,19 @@ class AudioEngine {
       // Defer out of the onend callback so Howler.js finishes its own cleanup
       // before we unload the current Howl and create a fresh one.
       const index = this.state.queueIndex
+      console.error('[AUDIO] handleTrackEnd: repeat-one, scheduling playAtIndex', index)
       queueMicrotask(() => this.playAtIndex(index))
       return
     }
 
     // Advance queue
     const nextIndex = this.getNextIndex()
+    console.error(
+      '[AUDIO] handleTrackEnd: repeatMode=',
+      this.state.repeatMode,
+      'nextIndex=',
+      nextIndex,
+    )
     if (nextIndex === -1) {
       // End of queue, no repeat
       this.setState({ isPlaying: false, positionMs: 0 })
@@ -199,7 +213,19 @@ class AudioEngine {
 
   private playAtIndex(index: number) {
     const track = this.state.queue[index]
-    if (!track) return
+    if (!track) {
+      console.error('[AUDIO] playAtIndex: no track at index', index)
+      return
+    }
+
+    console.error(
+      '[AUDIO] playAtIndex called index=',
+      index,
+      'hasNextHowl=',
+      !!this.nextHowl,
+      'nextHowlIndex=',
+      this.nextHowlIndex,
+    )
 
     this.retryCount = 0
     this.stopProgressTimer()
@@ -207,6 +233,7 @@ class AudioEngine {
     // Use pre-buffered howl if available and it matches this track
     let newHowl: Howl
     if (this.nextHowl && this.nextHowlIndex === index) {
+      console.error('[AUDIO] playAtIndex: using pre-buffered Howl for index', index)
       newHowl = this.nextHowl
       this.nextHowl = null
       this.nextHowlIndex = -1
@@ -216,6 +243,7 @@ class AudioEngine {
         this.nextHowl = null
         this.nextHowlIndex = -1
       }
+      console.error('[AUDIO] playAtIndex: building fresh Howl for index', index)
       newHowl = this.buildHowl(track.streamUrl)
     }
 
@@ -235,7 +263,11 @@ class AudioEngine {
     // Single callback for both the already-loaded and the still-loading cases.
     // Guard: bail if this howl was superseded by a newer playAtIndex call.
     const onReady = () => {
-      if (this.howl !== newHowl) return
+      if (this.howl !== newHowl) {
+        console.error('[AUDIO] onReady: stale Howl guard fired — skipping play()')
+        return
+      }
+      console.error('[AUDIO] onReady: calling play() for index', index, 'state=', newHowl.state())
       newHowl.play()
       this.setState({
         isLoading: false,
@@ -246,7 +278,9 @@ class AudioEngine {
       this.updateMediaSession(track)
     }
 
-    if (newHowl.state() === 'loaded') {
+    const howlState = newHowl.state()
+    console.error('[AUDIO] playAtIndex: Howl state=', howlState)
+    if (howlState === 'loaded') {
       // Pre-buffered: already loaded, start immediately
       onReady()
     } else {
