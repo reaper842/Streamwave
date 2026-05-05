@@ -134,6 +134,14 @@ class AudioEngine {
         this.setState({ isPlaying: false, error: message })
       },
       onend: () => {
+        console.error(
+          '[AUDIO] onend — repeatMode:',
+          this.state.repeatMode,
+          'queueIndex:',
+          this.state.queueIndex,
+          'queueLen:',
+          this.state.queue.length,
+        )
         this.handleTrackEnd()
       },
     })
@@ -153,6 +161,7 @@ class AudioEngine {
 
     // Advance queue
     const nextIndex = this.getNextIndex()
+    console.error('[AUDIO] handleTrackEnd — nextIndex:', nextIndex)
     if (nextIndex === -1) {
       // End of queue, no repeat
       this.setState({ isPlaying: false, positionMs: 0 })
