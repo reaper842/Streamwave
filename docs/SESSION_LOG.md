@@ -1274,3 +1274,27 @@ If the cache contains compiled modules that pre-date the Session 45–50 engine 
 - The most likely scenarios based on analysis: (a) `[AUDIO] onend fired` never appears → Howler's `_endTimers` listener is not firing; (b) `onend` fires but `handleTrackEnd` shows `nextIndex=-1` → repeatMode is `'off'` in the engine despite UI showing 'all'; (c) `[AUDIO] onReady: stale Howl guard fired` appears → `this.howl` was replaced before `onReady` ran; (d) `[AUDIO] onplayerror fired` appears → browser autoplay restriction blocking the repeat play.
 - The test mock fires `onend` synchronously (calls `_onend?.()` directly). Real Howler fires it via `setTimeout(fn, 0)` then our `queueMicrotask`. This timing difference cannot cause a consistent failure but may interact with browser-specific behaviors.
 - All 219 server + 123 client tests pass. 0 build errors.
+
+---
+
+## Session 53 — 2026-05-05: Repeat Bug — Diagnostic Coverage Expansion
+
+**Goal:** Expand `[AUDIO]` diagnostic logging coverage to capture all remaining failure paths.
+
+**What was done:**
+
+- Re-read `src/lib/audio/engine.ts`, `node_modules/howler/src/howler.core.js` (full `_ended`, `stop`, `_clearTimer`, `_inactiveSound`, `reset`, `_loadListener`, `_endListener`, `play()` Promise path), and the test mock to confirm all paths are still correct.
+- Changed `onloaderror` callback prefix from `[AudioEngine]` to `[AUDIO]` so it appears when filtering the Console for `[AUDIO]`. A silent load failure would previously have been invisible.
+- Added `soundId` logging: `onReady` now captures `const soundId = newHowl.play()` and logs `'[AUDIO] onReady: play() returned soundId= X index= Y'`. If `play()` returns null/undefined, that identifies a silent failure at the Howler `play()` level.
+- Added `'[AUDIO] playAtIndex: registering once(load) for index X'` log just before `newHowl.once('load', onReady)` — if this appears but `onReady` never fires, the load event never came through (load error or element recycling issue).
+- Committed as `f38b19f debug: improve [AUDIO] diagnostic coverage for repeat bug`.
+
+**What was NOT completed (carry to next session):**
+
+- The actual repeat bug fix. Still need browser console output.
+- **Next step (MUST DO FIRST):** Run `npm run dev:clean`, play a track with repeat enabled, let it end, paste the `[AUDIO]` console output. Fix the failure point, then strip all `[AUDIO]` diagnostic logging from `engine.ts`.
+
+**Key technical notes:**
+
+- After 7 sessions of analysis (47–53) every code path is confirmed correct in isolation. The failure is environmental (browser/Howler real behavior). Diagnostic output is the only remaining path to the fix.
+- All 219 server + 123 client = 342 tests pass. 0 build errors.
