@@ -121,7 +121,7 @@ class AudioEngine {
       volume: this.state.isMuted ? 0 : this.state.volume,
       onload: () => onLoad?.(),
       onloaderror: (_id, err) => {
-        console.error('[AudioEngine] Failed to load audio:', url, err)
+        console.error('[AUDIO] onloaderror fired:', url, err)
         if (this.retryCount < MAX_RETRIES) {
           this.retryCount++
           howl.load()
@@ -267,8 +267,8 @@ class AudioEngine {
         console.error('[AUDIO] onReady: stale Howl guard fired — skipping play()')
         return
       }
-      console.error('[AUDIO] onReady: calling play() for index', index, 'state=', newHowl.state())
-      newHowl.play()
+      const soundId = newHowl.play()
+      console.error('[AUDIO] onReady: play() returned soundId=', soundId, 'index=', index)
       this.setState({
         isLoading: false,
         isPlaying: true,
@@ -285,6 +285,7 @@ class AudioEngine {
       onReady()
     } else {
       // Fresh howl: wait for load before playing
+      console.error('[AUDIO] playAtIndex: registering once(load) for index', index)
       newHowl.once('load', onReady)
     }
   }
