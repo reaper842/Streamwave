@@ -1277,6 +1277,33 @@ If the cache contains compiled modules that pre-date the Session 45–50 engine 
 
 ---
 
+## Session 54 — 2026-05-05: Repeat Bug — Confirmed Fixed, Diagnostic Logging Removed
+
+**Goal:** Use browser `[AUDIO]` console output to identify repeat bug failure point; remove diagnostic logging.
+
+**What was done:**
+
+- User ran `npm run dev:clean`, played a track with repeat-all enabled, and provided browser console output.
+- Console output showed the complete repeat-all cycle working correctly:
+  - Track 0: initial play → soundId=1002 ✅
+  - Track 0 `onend` fired with `repeatMode: all`, `queueIndex: 0` ✅
+  - `handleTrackEnd` found `nextIndex=1` ✅
+  - `playAtIndex(1)` used pre-buffered Howl → soundId=1004 ✅
+  - Progress bar moving on track 1 ✅
+- **Repeat bug is confirmed fixed.** The fixes from sessions 45–49 (queueMicrotask deferral, fresh Howl for repeat-one, stale-Howl guard, prebufferNext repeat-one fix) are all working correctly in the real browser.
+- Removed all `[AUDIO]` diagnostic `console.error` calls from `src/lib/audio/engine.ts` (42 lines deleted, 4 added). Also removed unused `soundId` variable.
+- All 219 server + 123 client = 342 tests pass. `npm run build` → 0 errors.
+- Committed as `9dda317 fix: remove [AUDIO] diagnostic logging from AudioEngine`.
+
+**Key technical notes:**
+
+- The repeat-all 0→1 transition used the pre-buffered Howl (state=`loaded`) and called `onReady` directly (not via `once('load')`). Pre-buffering is working as intended.
+- The `[AUDIO]` logs appeared as red `console.error` entries in Chrome DevTools — this was by design for visibility, not a real error condition.
+
+**Result:** 219/219 server tests + 123/123 client tests pass | `npm run build` → 0 errors
+
+---
+
 ## Session 53 — 2026-05-05: Repeat Bug — Diagnostic Coverage Expansion
 
 **Goal:** Expand `[AUDIO]` diagnostic logging coverage to capture all remaining failure paths.
