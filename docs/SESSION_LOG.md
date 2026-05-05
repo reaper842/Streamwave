@@ -1277,28 +1277,34 @@ If the cache contains compiled modules that pre-date the Session 45–50 engine 
 
 ---
 
-## Session 54 — 2026-05-05: Repeat Bug — Confirmed Fixed, Diagnostic Logging Removed
+## Session 54 — 2026-05-05: Repeat Bug — Diagnostic Logging Cleanup + Wrap-Around Investigation
 
-**Goal:** Use browser `[AUDIO]` console output to identify repeat bug failure point; remove diagnostic logging.
+**Goal:** Interpret browser `[AUDIO]` console output; remove diagnostic logging; fix repeat bug.
 
 **What was done:**
 
-- User ran `npm run dev:clean`, played a track with repeat-all enabled, and provided browser console output.
-- Console output showed the complete repeat-all cycle working correctly:
-  - Track 0: initial play → soundId=1002 ✅
+- User provided browser console output filtered by `[AUDIO]`. The output showed:
+  - Track 0 initial play (soundId=1002) ✅
   - Track 0 `onend` fired with `repeatMode: all`, `queueIndex: 0` ✅
-  - `handleTrackEnd` found `nextIndex=1` ✅
-  - `playAtIndex(1)` used pre-buffered Howl → soundId=1004 ✅
-  - Progress bar moving on track 1 ✅
-- **Repeat bug is confirmed fixed.** The fixes from sessions 45–49 (queueMicrotask deferral, fresh Howl for repeat-one, stale-Howl guard, prebufferNext repeat-one fix) are all working correctly in the real browser.
-- Removed all `[AUDIO]` diagnostic `console.error` calls from `src/lib/audio/engine.ts` (42 lines deleted, 4 added). Also removed unused `soundId` variable.
-- All 219 server + 123 client = 342 tests pass. `npm run build` → 0 errors.
-- Committed as `9dda317 fix: remove [AUDIO] diagnostic logging from AudioEngine`.
+  - `handleTrackEnd` found `nextIndex=1` → `playAtIndex(1)` → track 1 started (soundId=1004, pre-buffered Howl) ✅
+- **IMPORTANT: This was 0→1 normal playback, NOT the repeat wrap-around.** With 2 tracks in a queue, 0→1 happens with or without repeat-all. The real repeat-all test is when the LAST track (index 1) ends and needs to wrap back to index 0. That was NOT tested.
+- Removed all bulk `[AUDIO]` diagnostic logging from `src/lib/audio/engine.ts` (42 lines deleted). Committed as `9dda317`.
+- User confirmed repeat-all still doesn't work after `npm run dev:clean`. Misidentified as fixed.
+- Re-added 2 targeted log lines to diagnose the actual wrap-around case:
+  - `onend`: logs `repeatMode`, `queueIndex`, `queueLen`
+  - `handleTrackEnd`: logs `nextIndex` after `getNextIndex()` call
+  - Committed as `b10e977`.
 
-**Key technical notes:**
+**What was NOT completed (carry to next session):**
 
-- The repeat-all 0→1 transition used the pre-buffered Howl (state=`loaded`) and called `onReady` directly (not via `once('load')`). Pre-buffering is working as intended.
-- The `[AUDIO]` logs appeared as red `console.error` entries in Chrome DevTools — this was by design for visibility, not a real error condition.
+- The actual repeat-all wrap-around bug is still unresolved.
+- **MUST DO FIRST:** `npm run dev:clean` → enable repeat-all → let the LAST TRACK end (NOT the first or middle) → paste `[AUDIO]` console output. The key numbers are `queueIndex` and `queueLen` from `onend` (must have `queueIndex = queueLen - 1` to confirm it's the last track) and `nextIndex` from `handleTrackEnd` (must be `0` for wrap-around, not `-1`).
+
+**Key technical notes for future sessions:**
+
+- **The previous test was misleading**: `onend` with `nextIndex=1` is NORMAL PLAYBACK (tracks 0→1), not repeat. Repeat-all only fires when `queueIndex = queueLen - 1` and `nextIndex` wraps to `0`. Always verify which track is ending before concluding repeat is working.
+- **Diagnostic log lines are in engine.ts** at `onend` (line ~137) and `handleTrackEnd` (line ~164). Remove them after the actual fix is confirmed.
+- 219+123 tests pass. 0 build errors.
 
 **Result:** 219/219 server tests + 123/123 client tests pass | `npm run build` → 0 errors
 
