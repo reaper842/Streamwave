@@ -1331,3 +1331,68 @@ If the cache contains compiled modules that pre-date the Session 45–50 engine 
 
 - After 7 sessions of analysis (47–53) every code path is confirmed correct in isolation. The failure is environmental (browser/Howler real behavior). Diagnostic output is the only remaining path to the fix.
 - All 219 server + 123 client = 342 tests pass. 0 build errors.
+
+---
+
+## Session 55 — 2026-05-06: Bug Fix — Repeat Button "Repeats Current Song" Root Cause Found
+
+**Goal:** Fix the repeat-all bug: when the user enables repeat-all, every track click loads only 1 song into the queue, making repeat-all indistinguishable from repeat-one.
+
+**Root cause identified (definitive):**
+
+The diagnostic logs from Session 54 showed `queueLen: 1` in the `onend` callback. This was the key: the queue only ever had **1 song** in it, regardless of how many songs the user's album contained. With 1 song and repeat-all, `getNextIndex()` correctly returns 0 (wraps back to same song), so the engine behavior was actually correct. The problem was upstream.
+
+`TrackRow.handlePlay` always called `playTrack(trackId)`:
+
+```typescript
+const handlePlay = () => void playTrack(track.id)
+```
+
+`playTrack` in `usePlayerStore` builds a **single-track queue**:
+
+```typescript
+const track = await fetchQueueTrack(trackId)
+getAudioEngine().play([track], 0) // 1-song queue!
+```
+
+So clicking ANY track from ANY page (album, playlist, artist, liked songs) replaced the queue with just that one track. With repeat-all and 1 song, the song replays itself — which the user correctly described as "it just repeats the current song." With multiple songs, the first song's end would calculate nextIndex=1 correctly, but clicking a track always reset the queue to 1.
+
+**Fix:**
+
+1. **`src/components/content/TrackList.tsx`** — compute `allTrackIds` from the `tracks` prop and pass it down to each `TrackRow`. Every `TrackList` instance now gives each row the full list of IDs in context (album track IDs, playlist track IDs, liked song IDs, artist top track IDs).
+
+2. **`src/components/content/TrackRow.tsx`** — added `allTrackIds?: string[]` prop. `handlePlay` now uses `playFromTrackIds(allTrackIds, index)` when multiple track IDs are available, falling back to `playTrack(track.id)` for single-track contexts.
+
+```typescript
+const handlePlay = () => {
+  if (allTrackIds && allTrackIds.length > 1) {
+    void playFromTrackIds(allTrackIds, index)
+  } else {
+    void playTrack(track.id)
+  }
+}
+```
+
+`playFromTrackIds` fetches all track metadata + stream URLs in parallel and calls `engine.play(tracks, startIndex)`, building the correct multi-song queue.
+
+3. **`src/lib/audio/engine.ts`** — removed remaining `[AUDIO]` diagnostic `console.error` from `handleTrackEnd` (the `onend` log was removed in a prior step). Removed unused `Howler` import (only `Howl` is needed since Session 20 removed global volume calls).
+
+**Effect on repeat behavior:**
+
+- **Before:** Album page → click track 3 → queue = [track 3] → repeat-all wraps to track 3 (same song)
+- **After:** Album page → click track 3 → queue = [track 1, track 2, ..., track N], playing from index 2 → repeat-all wraps correctly through all songs
+
+**Files changed:**
+
+- `src/components/content/TrackList.tsx` — compute + pass `allTrackIds` to each `TrackRow`
+- `src/components/content/TrackRow.tsx` — add `allTrackIds` prop; `handlePlay` uses `playFromTrackIds` when multiple IDs available; add `playFromTrackIds` selector from store
+- `src/lib/audio/engine.ts` — remove diagnostic `console.error` from `handleTrackEnd`; remove unused `Howler` import
+
+**Tests:** 219/219 server + 123/123 client = 342 tests pass | `npm run build` → 0 errors
+
+**Key technical notes for future sessions:**
+
+- **`playTrack(id)` creates a 1-song queue** — use `playAlbum(albumId, index)` or `playFromTrackIds(ids, index)` when context is available. `playTrack` should only be used for truly isolated single-track playback (e.g., context menu "Play now").
+- **`playFromTrackIds` vs `playAlbum`** — `playFromTrackIds` is more efficient when you already have the track IDs (saves 1 extra API call vs `playAlbum` which re-fetches the album). Both fetch stream URLs in parallel.
+- **The engine logic was always correct** — all repeat code paths were verified across Sessions 45–54. The bug was entirely in how the player store was called from the UI layer.
+- **Repeat-all is now testable:** click "Play" on an album page → multi-song queue loads → enable repeat-all → let the last song end → it wraps to the first song. To verify with a single-song click, use `playAlbum` via the album's play button instead of clicking an individual track row.

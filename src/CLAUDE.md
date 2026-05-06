@@ -126,6 +126,14 @@ Singleton class wrapping Howler.js. Must support:
 - `CardGrid` — responsive 2–6 column CSS grid
 - `PlayButton` — `PlayAlbumButton` / `PlayPlaylistButton` — client components for RSC pages
 
+### TrackRow / TrackList — Queue Context Pattern (Session 55)
+
+**ALWAYS pass `allTrackIds` from `TrackList` to `TrackRow`.** This ensures clicking any row loads the full album/playlist/top-tracks list into the queue, not a single-song queue.
+
+`TrackList` computes `allTrackIds = tracks.map((t) => t.id)` and forwards it to each `TrackRow`. `TrackRow.handlePlay` then calls `playFromTrackIds(allTrackIds, index)` when `allTrackIds.length > 1`, or falls back to `playTrack(track.id)` for a single-song context.
+
+Why this matters: `playTrack(trackId)` creates a **1-song queue** (`engine.play([track], 0)`). With repeat-all and 1 song, `getNextIndex()` wraps to index 0 — the same track, forever. This looked identical to repeat-one and was the root cause of the "repeat-all doesn't work" bug across Sessions 45–54. With `playFromTrackIds`, the full context (e.g. all 10 album tracks) is in the queue and repeat-all correctly cycles through all of them.
+
 ## Library Components (M5) — `src/components/library/`
 
 - `PlayLikedSongsButton` — play + shuffle buttons for Liked Songs page; calls `usePlayerStore.playFromTrackIds`
