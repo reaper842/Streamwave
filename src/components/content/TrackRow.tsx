@@ -23,15 +23,24 @@ const AddToPlaylistModal = dynamic(
 interface TrackRowProps {
   track: TrackSummary
   index: number
+  /** All track IDs in the current list context — clicking loads the full list into the queue */
+  allTrackIds?: string[]
   /** Show the album column (hidden on album pages since it's redundant) */
   showAlbum?: boolean
   className?: string
 }
 
-export function TrackRow({ track, index, showAlbum = true, className }: TrackRowProps) {
+export function TrackRow({
+  track,
+  index,
+  allTrackIds,
+  showAlbum = true,
+  className,
+}: TrackRowProps) {
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
 
   const playTrack = usePlayerStore((s) => s.playTrack)
+  const playFromTrackIds = usePlayerStore((s) => s.playFromTrackIds)
   const addToQueue = usePlayerStore((s) => s.addToQueue)
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -42,7 +51,13 @@ export function TrackRow({ track, index, showAlbum = true, className }: TrackRow
   const isCurrentTrack = currentTrack?.id === track.id
   const isCurrentlyPlaying = isCurrentTrack && isPlaying
 
-  const handlePlay = () => void playTrack(track.id)
+  const handlePlay = () => {
+    if (allTrackIds && allTrackIds.length > 1) {
+      void playFromTrackIds(allTrackIds, index)
+    } else {
+      void playTrack(track.id)
+    }
+  }
 
   const contextItems = [
     {

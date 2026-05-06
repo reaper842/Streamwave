@@ -19,12 +19,21 @@ export function TrackList({ tracks, showAlbum = true, emptyMessage }: TrackListP
     )
   }
 
+  // Pre-compute IDs so clicking any row loads the full list into the queue.
+  const allTrackIds = tracks.map((t) => t.id)
+
   return (
     <div className="flex flex-col">
       <TrackListHeader showAlbum={showAlbum} />
       <div className="mt-2 flex flex-col">
         {tracks.map((track, index) => (
-          <TrackRow key={track.id} track={track} index={index} showAlbum={showAlbum} />
+          <TrackRow
+            key={track.id}
+            track={track}
+            index={index}
+            showAlbum={showAlbum}
+            allTrackIds={allTrackIds}
+          />
         ))}
       </div>
     </div>
