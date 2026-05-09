@@ -147,28 +147,30 @@ Why this matters: `playTrack(trackId)` creates a **1-song queue** (`engine.play(
 - `FollowArtistButton` — client toggle button wired to `useLibraryStore.toggleFollowArtist`; shows "Follow"/"Following"
 - `SaveAlbumButton` — client toggle button wired to `useLibraryStore.toggleSaveAlbum`; shows "Save"/"Saved"
 
-### Drag-and-Drop Track Reorder (Session 58) — `@dnd-kit`
+### Drag-and-Drop Track Reorder (Sessions 58–59) — `@dnd-kit`
 
 `DraggableTrackList` + `SortableTrackRow` implement playlist owner drag-to-reorder. **`TrackRow` is unchanged.**
 
 **Architecture (critical — the dragHandle-as-prop approach does NOT work):**
 
 ```
-<div ref={setNodeRef} className="group flex items-stretch">   ← SortableTrackRow root
-  <button ref={setActivatorNodeRef} {...listeners} {...attributes}  ← grip handle, direct group child
-    className="w-5 opacity-0 group-hover:opacity-100 ...">
+<div ref={setNodeRef} className="group/row flex items-stretch">  ← SortableTrackRow root (NAMED group)
+  <button ref={setActivatorNodeRef} {...listeners} {...attributes}  ← grip handle, direct child
+    className="w-5 opacity-0 group-hover/row:opacity-100 ...">     ← named group-hover/row
     <GripVertical />
   </button>
   <div className="min-w-0 flex-1">
-    <TrackRow ... />                                           ← unchanged component
+    <TrackRow ... />                                               ← unchanged component (has its own group)
   </div>
 </div>
 ```
 
 Key rules:
 
+- **Use named group `group/row` + `group-hover/row:*`** — `TrackRow` also uses an unnamed `group` class on its root div, creating a nested group structure. Tailwind 4 unnamed `group-hover:*` can be ambiguous when there are multiple `group` ancestors; named groups eliminate the ambiguity entirely. **Never use unnamed `group-hover:*` when a sibling or nested element also has `group`**.
 - **`setActivatorNodeRef` is required** on the grip button — without it, dnd-kit watches the root `setNodeRef` div and the grip button's `{...listeners}` events never fire
-- **Grip button must be a direct child of the `group` div** (not inside TrackRow) so `group-hover:opacity-100` resolves to the correct ancestor
+- **Grip button must be a direct child of the `group/row` div** (not inside TrackRow)
+- **`DndContext` must have an explicit `id` prop** — dnd-kit auto-increments accessibility IDs; without an explicit ID, SSR and client can generate different values causing a React 19 hydration mismatch. Use `id={`dnd-playlist-${playlistId}`}`.
 - `DraggableTrackList` header uses `<div className="w-5 flex-shrink-0" aria-hidden="true" />` spacer to align header columns with row columns
 - `PointerSensor` with `activationConstraint: { distance: 5 }` prevents accidental drags on row clicks
 - Optimistic reorder: `arrayMove` updates local `useState` immediately; `useLibraryStore.reorderPlaylistTracks` persists to API
