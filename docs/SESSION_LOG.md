@@ -1396,3 +1396,25 @@ const handlePlay = () => {
 - **`playFromTrackIds` vs `playAlbum`** — `playFromTrackIds` is more efficient when you already have the track IDs (saves 1 extra API call vs `playAlbum` which re-fetches the album). Both fetch stream URLs in parallel.
 - **The engine logic was always correct** — all repeat code paths were verified across Sessions 45–54. The bug was entirely in how the player store was called from the UI layer.
 - **Repeat-all is now testable:** click "Play" on an album page → multi-song queue loads → enable repeat-all → let the last song end → it wraps to the first song. To verify with a single-song click, use `playAlbum` via the album's play button instead of clicking an individual track row.
+
+---
+
+## Session 56 — 2026-05-07: Database cleanup — deleted test playlist "My Playlist #1"
+
+**Goal:** Delete the user-created test playlist "My Playlist #1" (owned by user "Reaper") from the database as requested.
+
+**What was done:**
+
+- Used a temporary Prisma script with `PrismaPg` adapter to query and delete the playlist directly from the `streamwave` PostgreSQL database.
+- Playlist ID `d27b5b53-644f-4df7-91e5-0e35756e04bd` ("My Playlist #1", owner: Reaper) deleted. `PlaylistTrack` rows cascade-deleted automatically (schema has `onDelete: Cascade` on the `playlist` relation).
+- No source code files were modified. Working tree remained clean throughout. No commit needed.
+
+**What was NOT completed (carry to next session):**
+
+- No development tasks started this session. Next task: M5 drag-and-drop track reorder in playlists (`@dnd-kit/core`).
+
+**Key technical notes for future sessions:**
+
+- **Prisma 7 requires `PrismaPg` adapter** — `new PrismaClient()` with no args throws `PrismaClientInitializationError`. Always construct as `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`.
+- **Prisma generated client path** — `src/generated/prisma/client` (not `index.js`). Import as `import { PrismaClient } from './src/generated/prisma/client'`.
+- **6 playlists remain** in the database: My 3 Songs, Party Starters, Focus Mode, Late Night Drive, Workout Fuel, Chill Vibes (all owned by Demo User).
