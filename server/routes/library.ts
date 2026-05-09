@@ -10,6 +10,7 @@ import {
   getFollowedArtists,
   followArtist,
   unfollowArtist,
+  getFollowedArtistReleases,
 } from '../services/library'
 import { requireUser } from '../plugins/auth'
 
@@ -145,6 +146,13 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
     const user = requireUser(request)
     const artists = await getFollowedArtists(user.id)
     return reply.send({ data: artists })
+  })
+
+  // GET /api/v1/library/followed-artists/releases
+  fastify.get('/followed-artists/releases', async (request, reply) => {
+    const user = requireUser(request)
+    const releases = await getFollowedArtistReleases(user.id)
+    return reply.send({ data: releases })
   })
 
   // POST /api/v1/library/followed-artists/:artistId — follow an artist

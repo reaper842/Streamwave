@@ -289,3 +289,52 @@ export async function unfollowArtist(userId: string, artistId: string): Promise<
     where: { user_id: userId, artist_id: artistId },
   })
 }
+
+// ── Followed Artist Releases ──────────────────────────────────────────────────
+
+export interface ArtistRelease {
+  id: string
+  title: string
+  cover_url: string | null
+  release_date: string | null
+  created_at: string
+  artist: { id: string; name: string }
+  type: 'album'
+}
+
+/**
+ * Return recent albums from all artists the user follows, newest first.
+ * Returns an empty array if the user follows no artists.
+ */
+export async function getFollowedArtistReleases(
+  userId: string,
+  limit = 20,
+): Promise<ArtistRelease[]> {
+  const followed = await prisma.followedArtist.findMany({
+    where: { user_id: userId },
+    select: { artist_id: true },
+  })
+
+  if (followed.length === 0) return []
+
+  const artistIds = followed.map((f) => f.artist_id)
+
+  const albums = await prisma.album.findMany({
+    where: { artist_id: { in: artistIds } },
+    orderBy: { created_at: 'desc' },
+    take: Math.min(limit, 50),
+    include: {
+      artist: { select: { id: true, name: true } },
+    },
+  })
+
+  return albums.map((album) => ({
+    id: album.id,
+    title: album.title,
+    cover_url: album.cover_url,
+    release_date: album.release_date?.toISOString() ?? null,
+    created_at: album.created_at.toISOString(),
+    artist: album.artist,
+    type: 'album' as const,
+  }))
+}
