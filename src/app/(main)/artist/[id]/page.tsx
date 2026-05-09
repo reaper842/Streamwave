@@ -44,7 +44,11 @@ export default async function ArtistPage({ params }: Props) {
           <h1 className="text-6xl font-bold text-text-primary">{artist.name}</h1>
         </div>
         <div className="absolute bottom-4 right-6">
-          <FollowArtistButton artistId={artist.id} />
+          <FollowArtistButton
+            artistId={artist.id}
+            artistName={artist.name}
+            artistImageUrl={artist.image_url}
+          />
         </div>
       </div>
 

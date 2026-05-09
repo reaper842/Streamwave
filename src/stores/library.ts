@@ -17,12 +17,19 @@ interface PlaylistSummary {
   updated_at: string
 }
 
+export interface ArtistSummary {
+  id: string
+  name: string
+  image_url: string | null
+}
+
 // ── Store state ────────────────────────────────────────────────────────────────
 
 interface LibraryState {
   likedSongIds: Set<string>
   savedAlbumIds: Set<string>
   followedArtistIds: Set<string>
+  followedArtists: ArtistSummary[]
   playlists: PlaylistSummary[]
   isLoading: boolean
   error: string | null
@@ -40,7 +47,7 @@ interface LibraryState {
 
   // Followed artists
   isFollowing: (artistId: string) => boolean
-  toggleFollowArtist: (artistId: string) => Promise<void>
+  toggleFollowArtist: (artistId: string, artistData?: ArtistSummary) => Promise<void>
 
   // Playlists
   fetchPlaylists: () => Promise<void>
@@ -70,6 +77,7 @@ export const useLibraryStore = create<LibraryState>()(
       likedSongIds: new Set<string>(),
       savedAlbumIds: new Set<string>(),
       followedArtistIds: new Set<string>(),
+      followedArtists: [],
       playlists: [],
       isLoading: false,
       error: null,
@@ -82,7 +90,7 @@ export const useLibraryStore = create<LibraryState>()(
           const [likedRes, albumsRes, artistsRes, playlistsRes] = await Promise.all([
             apiClient.get<{ id: string }[]>('/library/liked-songs?limit=100'),
             apiClient.get<{ id: string }[]>('/library/saved-albums?limit=100'),
-            apiClient.get<{ id: string }[]>('/library/followed-artists'),
+            apiClient.get<ArtistSummary[]>('/library/followed-artists'),
             apiClient.get<PlaylistSummary[]>('/playlists'),
           ])
 
@@ -94,6 +102,7 @@ export const useLibraryStore = create<LibraryState>()(
             likedSongIds: likedIds,
             savedAlbumIds: albumIds,
             followedArtistIds: artistIds,
+            followedArtists: artistsRes.data,
             playlists: playlistsRes.data,
             isLoading: false,
           })
@@ -163,17 +172,24 @@ export const useLibraryStore = create<LibraryState>()(
 
       isFollowing: (artistId) => get().followedArtistIds.has(artistId),
 
-      toggleFollowArtist: async (artistId) => {
-        const { followedArtistIds } = get()
+      toggleFollowArtist: async (artistId, artistData?) => {
+        const { followedArtistIds, followedArtists } = get()
         const wasFollowing = followedArtistIds.has(artistId)
 
-        const next = new Set(followedArtistIds)
+        const nextIds = new Set(followedArtistIds)
         if (wasFollowing) {
-          next.delete(artistId)
+          nextIds.delete(artistId)
         } else {
-          next.add(artistId)
+          nextIds.add(artistId)
         }
-        set({ followedArtistIds: next })
+
+        const nextArtists = wasFollowing
+          ? followedArtists.filter((a) => a.id !== artistId)
+          : artistData
+            ? [artistData, ...followedArtists]
+            : followedArtists
+
+        set({ followedArtistIds: nextIds, followedArtists: nextArtists })
 
         try {
           if (wasFollowing) {
@@ -182,7 +198,7 @@ export const useLibraryStore = create<LibraryState>()(
             await apiClient.post(`/library/followed-artists/${artistId}`)
           }
         } catch {
-          set({ followedArtistIds: new Set(followedArtistIds) })
+          set({ followedArtistIds: new Set(followedArtistIds), followedArtists })
         }
       },
 

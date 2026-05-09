@@ -1,21 +1,34 @@
 'use client'
 
-import { useLibraryStore } from '@/stores/library'
+import { useLibraryStore, type ArtistSummary } from '@/stores/library'
 import { cn } from '@/lib/utils/cn'
 
 interface FollowArtistButtonProps {
   artistId: string
+  artistName?: string
+  artistImageUrl?: string | null
 }
 
-export function FollowArtistButton({ artistId }: FollowArtistButtonProps) {
+export function FollowArtistButton({
+  artistId,
+  artistName,
+  artistImageUrl,
+}: FollowArtistButtonProps) {
   const isFollowing = useLibraryStore((s) => s.isFollowing)
   const toggleFollowArtist = useLibraryStore((s) => s.toggleFollowArtist)
 
   const following = isFollowing(artistId)
 
+  const handleClick = () => {
+    const artistData: ArtistSummary | undefined = artistName
+      ? { id: artistId, name: artistName, image_url: artistImageUrl ?? null }
+      : undefined
+    void toggleFollowArtist(artistId, artistData)
+  }
+
   return (
     <button
-      onClick={() => void toggleFollowArtist(artistId)}
+      onClick={handleClick}
       aria-label={following ? 'Unfollow artist' : 'Follow artist'}
       className={cn(
         'rounded-full border px-6 py-1.5 text-sm font-semibold transition-colors',
