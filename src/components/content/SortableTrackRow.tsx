@@ -32,14 +32,14 @@ export function SortableTrackRow({ track, index, allTrackIds, showAlbum }: Sorta
   }
 
   return (
-    // "group" lives here so the grip button's group-hover:* fires on row hover
-    <div ref={setNodeRef} style={style} className="group flex items-stretch">
+    // Named group "row" so grip hover targets this container, not TrackRow's inner group
+    <div ref={setNodeRef} style={style} className="group/row flex items-stretch">
       <button
         ref={setActivatorNodeRef}
         {...listeners}
         {...attributes}
         aria-label="Drag to reorder"
-        className="flex w-5 flex-shrink-0 cursor-grab items-center justify-center text-text-subdued opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+        className="flex w-5 flex-shrink-0 cursor-grab items-center justify-center text-text-subdued opacity-0 transition-opacity group-hover/row:opacity-100 active:cursor-grabbing"
       >
         <GripVertical size={14} />
       </button>

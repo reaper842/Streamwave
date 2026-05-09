@@ -84,7 +84,12 @@ export function DraggableTrackList({
           <TrackListHeader showAlbum={showAlbum} />
         </div>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        id={`dnd-playlist-${playlistId}`}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={allTrackIds} strategy={verticalListSortingStrategy}>
           <div className="mt-2 flex flex-col">
             {tracks.map((track, index) => (

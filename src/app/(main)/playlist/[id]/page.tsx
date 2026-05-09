@@ -19,6 +19,13 @@ export default async function PlaylistPage({ params }: Props) {
 
   const isOwner = session?.user?.id === playlist.owner.id
 
+  // Diagnostic: log ownership check to server console so we can verify the comparison
+  console.log('[PlaylistPage] isOwner debug:', {
+    sessionUserId: session?.user?.id,
+    playlistOwnerId: playlist.owner.id,
+    isOwner,
+  })
+
   return (
     <div>
       {/* Hero header */}
