@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
+import { cn } from '@/lib/utils/cn'
 import { TrackRow } from './TrackRow'
 import type { TrackSummary } from '@/types/content'
 
@@ -14,6 +16,8 @@ interface SortableTrackRowProps {
 }
 
 export function SortableTrackRow({ track, index, allTrackIds, showAlbum }: SortableTrackRowProps) {
+  const [isRowHovered, setIsRowHovered] = useState(false)
+
   const {
     attributes,
     listeners,
@@ -32,14 +36,22 @@ export function SortableTrackRow({ track, index, allTrackIds, showAlbum }: Sorta
   }
 
   return (
-    // Named group "row" so grip hover targets this container, not TrackRow's inner group
-    <div ref={setNodeRef} style={style} className="group/row flex items-stretch">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-stretch"
+      onMouseEnter={() => setIsRowHovered(true)}
+      onMouseLeave={() => setIsRowHovered(false)}
+    >
       <button
         ref={setActivatorNodeRef}
         {...listeners}
         {...attributes}
         aria-label="Drag to reorder"
-        className="flex w-5 flex-shrink-0 cursor-grab items-center justify-center text-text-subdued opacity-0 transition-opacity group-hover/row:opacity-100 active:cursor-grabbing"
+        className={cn(
+          'flex w-5 flex-shrink-0 cursor-grab items-center justify-center text-text-subdued transition-opacity active:cursor-grabbing',
+          isRowHovered ? 'opacity-100' : 'opacity-0',
+        )}
       >
         <GripVertical size={14} />
       </button>
