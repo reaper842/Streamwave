@@ -1,13 +1,21 @@
 'use client'
 
+import { useState } from 'react'
 import { NowPlaying } from '@/components/playback/NowPlaying'
 import { TransportControls } from '@/components/playback/TransportControls'
 import { VolumeSlider } from '@/components/playback/VolumeSlider'
 import { MiniPlayer } from '@/components/playback/MiniPlayer'
+import { QueueButton } from '@/components/playback/QueueButton'
+import { QueuePanel } from '@/components/playback/QueuePanel'
 
 export function PlaybackBar() {
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
+
   return (
     <>
+      {/* Queue panel — slides in above the playback bar on desktop */}
+      <QueuePanel isOpen={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+
       {/* Full playback bar — visible on sm+ (≥640px) */}
       <footer
         data-testid="playback-bar"
@@ -18,7 +26,10 @@ export function PlaybackBar() {
         <div className="grid h-full grid-cols-3 items-center gap-4">
           <NowPlaying />
           <TransportControls />
-          <VolumeSlider />
+          <div className="flex items-center justify-end gap-2">
+            <VolumeSlider />
+            <QueueButton isOpen={isQueueOpen} onToggle={() => setIsQueueOpen((o) => !o)} />
+          </div>
         </div>
       </footer>
 
