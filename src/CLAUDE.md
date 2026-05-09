@@ -273,6 +273,14 @@ const MyModal = dynamic(() => import('@/components/...').then((m) => ({ default:
 
 Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlaylistDialog` (PlaylistControls).
 
+## Queue Panel (Session 62) — `src/components/playback/`
+
+- `QueueButton` — icon button (`ListMusic`) in PlaybackBar right section. `isOpen` prop controls color (accent-primary vs secondary); `onToggle` callback. `aria-pressed` reflects state.
+- `QueuePanel` — fixed right panel: `right-0`, `bottom-[90px]`, `top: 64px` (inline style, matches TopBar), `w-[340px]`. Two sections: **Now Playing** (current queue[queueIndex], accent-green title) and **Next in queue** (queue.slice(queueIndex + 1)). Returns `null` when closed.
+- Remove button on each upcoming track calls `removeFromQueue(queueIndex + 1 + i)` — absolute index in the queue array.
+- **Zustand selector rule**: use separate `usePlayerStore((s) => s.field)` calls per field — never an inline object selector (causes infinite render loop).
+- `PlaybackBar.tsx` manages `isQueueOpen` state (`useState(false)`); right grid section wraps `<VolumeSlider /> + <QueueButton />` in a flex div.
+
 ## Test Selectors (data-testid)
 
 - `[data-testid="playback-bar"]` — `<footer>` in `PlaybackBar.tsx` (full 90px bar)
