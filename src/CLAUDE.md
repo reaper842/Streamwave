@@ -196,11 +196,23 @@ Key rules:
 
 ## Library Store (M5) — `src/stores/library.ts`
 
-- `useLibraryStore` — state: `likedSongIds`/`savedAlbumIds`/`followedArtistIds` (Sets) + `playlists` array
+- `useLibraryStore` — state: `likedSongIds`/`savedAlbumIds`/`followedArtistIds` (Sets) + `followedArtists` (ArtistSummary[]) + `playlists` array
 - `fetchLibrary()` — bootstraps all 4 endpoints in parallel; called in `(main)/layout.tsx` on mount
 - Toggle actions (`toggleLike`, `toggleSaveAlbum`, `toggleFollowArtist`) — optimistic updates with snapshot-before + revert-on-error
+- `toggleFollowArtist(artistId, artistData?)` — optional `ArtistSummary` passed by `FollowArtistButton` so sidebar updates immediately without a refetch
+- `ArtistSummary` (exported from `library.ts`) — `{ id, name, image_url }` used by both the store and `FollowArtistButton`
+- `followedArtistIds` Set used for O(1) `isFollowing()` lookup; `followedArtists` array used for sidebar ordered display
 - Store does NOT call toast directly — expose `error` state; components react to it
 - `usePlayerStore.playFromTrackIds(trackIds[], startIndex?)` — plays arbitrary track ID lists (used by liked songs)
+
+## Notifications (Session 61) — `src/components/layout/NotificationBell.tsx`
+
+- `NotificationBell` — client component in TopBar; fetches `GET /library/followed-artists/releases` on mount
+- Bell icon with green badge (count of unseen releases); badge resets when user opens the dropdown
+- Unread count uses `localStorage` key `sw_releases_last_seen` (epoch timestamp) — no DB table needed
+- Dropdown shows album list with cover art, title, artist name, links to `/album/[id]`
+- Returns `null` (renders nothing) when user follows no artists
+- `FollowArtistButton` in `src/components/content/FollowArtistButton.tsx` — accepts `artistName?` and `artistImageUrl?` props; constructs `ArtistSummary` and passes to `toggleFollowArtist` for immediate sidebar update
 
 ## Search (M6) — `src/stores/search.ts`, `src/components/search/`
 

@@ -103,6 +103,7 @@ GET    /api/v1/library/saved-albums
 POST   /api/v1/library/saved-albums/:albumId
 DELETE /api/v1/library/saved-albums/:albumId
 GET    /api/v1/library/followed-artists
+GET    /api/v1/library/followed-artists/releases  → recent albums from followed artists (limit 20)
 POST   /api/v1/library/followed-artists/:artistId
 DELETE /api/v1/library/followed-artists/:artistId
 GET    /api/v1/playlists                    → user's own playlists
