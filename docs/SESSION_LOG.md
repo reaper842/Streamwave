@@ -1446,3 +1446,49 @@ const handlePlay = () => {
 - **`connect-src` uses `NEXT_PUBLIC_API_URL`** — This is the client-side fetch base URL (`src/lib/api/client.ts`). `FASTIFY_API_URL` is server→server only (NextAuth Credentials provider → Fastify); it never originates from the browser and is irrelevant to CSP `connect-src`.
 - **`new URL(raw).origin` strips the path** — If `NEXT_PUBLIC_API_URL` is set to `https://api.streamwave.app/api/v1` (common operator mistake), `.origin` returns `https://api.streamwave.app`, preventing a CSP that over-allows or under-allows based on a trailing path.
 - **`/_next/static/` Cache-Control is Next.js-managed** — Custom overrides in `headers()` are silently ignored by Next.js for this path (with a build warning). The rule is now removed; the `public/` assets rule (`/(.+)`, 1-day cache) remains and is still necessary.
+
+---
+
+## Session 59 — 2026-05-09: Bug investigation — Drag handles not appearing in playlist page
+
+**Goal:** Investigate and fix the `@dnd-kit` drag handles not appearing after running `npm run dev:clean` + clearing browser site data.
+
+**Root cause analysis:**
+
+Two independent issues were found:
+
+**Issue 1: Tailwind 4 unnamed `group-hover` with nested `group` elements**
+
+`SortableTrackRow` outer div had `className="group flex items-stretch"` (unnamed group). Its direct child grip button had `group-hover:opacity-100`. However, `TrackRow` (rendered as the other flex child in the same row) also uses `group` on its own root div — creating a nested group structure.
+
+In Tailwind v4.2.2, unnamed `group-hover:*` relies on the CSS rule `.group:hover .group-hover\:opacity-100 { opacity: 1 }`. With nested unnamed groups, there can be ambiguity about which ancestor's hover state triggers the modifier. Using a **named group** (`group/row` + `group-hover/row:opacity-100`) makes the selector explicit and unambiguous.
+
+**Fix:** Changed `group` → `group/row` on the outer `SortableTrackRow` container, and `group-hover:opacity-100` → `group-hover/row:opacity-100` on the grip button.
+
+**Issue 2: dnd-kit auto-generated accessibility IDs causing potential React 19 hydration mismatch**
+
+`DndContext` auto-generates incrementing IDs for ARIA live regions. On the server and client, these counters can diverge, producing a hydration mismatch warning in the browser console. Under React 19 and Next.js App Router strict hydration, this can silently prevent the component from mounting correctly.
+
+**Fix:** Added explicit `id={`dnd-playlist-${playlistId}`}` to `DndContext` so SSR and client produce identical markup.
+
+**Diagnostic added:**
+
+Added a `console.log('[PlaylistPage] isOwner debug', { sessionUserId, playlistOwnerId, isOwner })` to `src/app/(main)/playlist/[id]/page.tsx` so the operator can verify the `isOwner` check in the dev server terminal when visiting a playlist page. **This log should be removed once the issue is confirmed fixed.**
+
+**Files changed:**
+
+- `src/components/content/SortableTrackRow.tsx` — `group` → `group/row`, `group-hover:opacity-100` → `group-hover/row:opacity-100`
+- `src/components/content/DraggableTrackList.tsx` — added `id` prop to `DndContext`
+- `src/app/(main)/playlist/[id]/page.tsx` — added diagnostic `console.log`
+
+**Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors
+
+**Testing instructions:**
+
+1. Run `npm run dev:clean`
+2. Log in as `demo@streamwave.app` / `Demo1234`
+3. Navigate to any playlist (e.g. "Chill Vibes" from the home page)
+4. Check the **server terminal** for `[PlaylistPage] isOwner debug:` — `isOwner` should be `true`
+5. Hover over a track row — the GripVertical icon should appear on the left
+6. Drag a track to a new position
+7. Once confirmed working, remove the `console.log` from `playlist/[id]/page.tsx`
