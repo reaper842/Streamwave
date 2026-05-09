@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { SearchInput } from '@/components/search/SearchInput'
+import { NotificationBell } from '@/components/layout/NotificationBell'
 
 export function TopBar() {
   const router = useRouter()
@@ -86,65 +87,68 @@ export function TopBar() {
         </div>
       )}
 
-      {/* Right: user profile */}
-      <div ref={dropdownRef} className="relative">
-        <button
-          className="flex items-center gap-2 rounded-full bg-bg-press p-1 pr-3 text-sm font-semibold text-text-primary hover:bg-bg-highlight transition-colors"
-          onClick={() => setDropdownOpen((v) => !v)}
-          aria-haspopup="menu"
-          aria-expanded={dropdownOpen}
-          aria-label="User menu"
-        >
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={displayName}
-                width={28}
-                height={28}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <User size={16} aria-hidden="true" />
-            )}
-          </div>
-          <span className="max-w-[120px] truncate">{displayName}</span>
-        </button>
-
-        {dropdownOpen && (
-          <div
-            role="menu"
-            className="absolute right-0 top-full mt-1 w-48 rounded bg-bg-highlight py-1 shadow-xl"
+      {/* Right: notification bell + user profile */}
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+        <div ref={dropdownRef} className="relative">
+          <button
+            className="flex items-center gap-2 rounded-full bg-bg-press p-1 pr-3 text-sm font-semibold text-text-primary hover:bg-bg-highlight transition-colors"
+            onClick={() => setDropdownOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={dropdownOpen}
+            aria-label="User menu"
           >
-            <Link
-              href="/profile"
-              role="menuitem"
-              className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => setDropdownOpen(false)}
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-elevated">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt={displayName}
+                  width={28}
+                  height={28}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <User size={16} aria-hidden="true" />
+              )}
+            </div>
+            <span className="max-w-[120px] truncate">{displayName}</span>
+          </button>
+
+          {dropdownOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full mt-1 w-48 rounded bg-bg-highlight py-1 shadow-xl"
             >
-              Profile
-            </Link>
-            <Link
-              href="/settings"
-              role="menuitem"
-              className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => setDropdownOpen(false)}
-            >
-              Settings
-            </Link>
-            <div className="my-1 border-t border-border-default" />
-            <button
-              role="menuitem"
-              className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
-              onClick={() => {
-                setDropdownOpen(false)
-                logout()
-              }}
-            >
-              Log out
-            </button>
-          </div>
-        )}
+              <Link
+                href="/profile"
+                role="menuitem"
+                className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
+                onClick={() => setDropdownOpen(false)}
+              >
+                Profile
+              </Link>
+              <Link
+                href="/settings"
+                role="menuitem"
+                className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
+                onClick={() => setDropdownOpen(false)}
+              >
+                Settings
+              </Link>
+              <div className="my-1 border-t border-border-default" />
+              <button
+                role="menuitem"
+                className="flex h-9 w-full items-center px-4 text-sm text-text-primary hover:bg-bg-press transition-colors"
+                onClick={() => {
+                  setDropdownOpen(false)
+                  logout()
+                }}
+              >
+                Log out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

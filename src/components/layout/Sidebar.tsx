@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils/cn'
 import { useUIStore } from '@/stores/ui'
 import { useLibraryStore } from '@/stores/library'
 import { usePlayerStore } from '@/stores/player'
-import { Heart, Home, Library, Music, Plus, Search } from 'lucide-react'
+import { Heart, Home, Library, Music, Plus, Search, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -13,6 +13,7 @@ export function Sidebar() {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const pathname = usePathname()
   const playlists = useLibraryStore((s) => s.playlists)
+  const followedArtists = useLibraryStore((s) => s.followedArtists)
   const createPlaylist = useLibraryStore((s) => s.createPlaylist)
   const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 
@@ -66,6 +67,44 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
+
+      {/* Following artists — shown below Search when sidebar is open */}
+      {sidebarOpen && followedArtists.length > 0 && (
+        <nav className="mt-1 px-3">
+          <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-text-subdued">
+            Following
+          </p>
+          {followedArtists.slice(0, 8).map((artist) => (
+            <Link
+              key={artist.id}
+              href={`/artist/${artist.id}`}
+              className={cn(
+                'flex h-10 items-center gap-3 rounded px-3 text-sm transition-colors',
+                pathname === `/artist/${artist.id}`
+                  ? 'text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary',
+              )}
+            >
+              <div className="relative h-6 w-6 flex-shrink-0 overflow-hidden rounded-full bg-bg-press">
+                {artist.image_url ? (
+                  <Image
+                    src={artist.image_url}
+                    alt={artist.name}
+                    fill
+                    sizes="24px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <UserRound size={12} className="text-text-subdued" aria-hidden="true" />
+                  </div>
+                )}
+              </div>
+              <span className="truncate">{artist.name}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <div className="mx-3 mt-2 border-t border-border-default" />
 
