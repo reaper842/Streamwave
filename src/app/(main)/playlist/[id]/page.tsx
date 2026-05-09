@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth/config'
 import { fetchPlaylist } from '@/lib/data/content'
 import { TrackList } from '@/components/content/TrackList'
+import { DraggableTrackList } from '@/components/content/DraggableTrackList'
 import { PlaylistControls } from '@/components/library/PlaylistControls'
 import { formatDuration } from '@/lib/utils/formatDuration'
 
@@ -75,9 +76,18 @@ export default async function PlaylistPage({ params }: Props) {
         />
       </div>
 
-      {/* Track list */}
+      {/* Track list — draggable for owners, static for visitors */}
       <div className="px-6 pb-8">
-        <TrackList tracks={playlist.tracks} showAlbum emptyMessage="This playlist is empty" />
+        {isOwner ? (
+          <DraggableTrackList
+            initialTracks={playlist.tracks}
+            playlistId={playlist.id}
+            showAlbum
+            emptyMessage="This playlist is empty"
+          />
+        ) : (
+          <TrackList tracks={playlist.tracks} showAlbum emptyMessage="This playlist is empty" />
+        )}
       </div>
     </div>
   )
