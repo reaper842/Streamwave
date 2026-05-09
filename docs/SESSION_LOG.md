@@ -1492,3 +1492,60 @@ Added a `console.log('[PlaylistPage] isOwner debug', { sessionUserId, playlistOw
 5. Hover over a track row — the GripVertical icon should appear on the left
 6. Drag a track to a new position
 7. Once confirmed working, remove the `console.log` from `playlist/[id]/page.tsx`
+
+---
+
+## Session 61 — 2026-05-09: Follow Button, Following Section in Sidebar & Notification Bell
+
+**Goal:** Wire up three related features: (1) Follow button stores artist metadata for sidebar display, (2) "Following" section appears below Search in the Sidebar showing followed artists, (3) Notification bell in TopBar shows recent albums from followed artists.
+
+**What was done:**
+
+### Backend
+
+- Added getFollowedArtistReleases(userId, limit) to server/services/library.ts — queries all albums from artists the user follows, sorted by created_at desc
+- Added GET /api/v1/library/followed-artists/releases route to server/routes/library.ts
+
+### Library Store (src/stores/library.ts)
+
+- Added ArtistSummary interface (id,
+  ame, image_url) — exported for use in components
+- Added ollowedArtists: ArtistSummary[] to store state (alongside existing ollowedArtistIds Set)
+- Updated etchLibrary to populate ollowedArtists from the full API response (previously only extracted IDs)
+- Updated oggleFollowArtist signature: accepts optional rtistData?: ArtistSummary. When following, prepends to ollowedArtists; when unfollowing, filters it out. Rollback reverts both ollowedArtistIds and ollowedArtists.
+
+### FollowArtistButton (src/components/content/FollowArtistButton.tsx)
+
+- Added rtistName?: string and rtistImageUrl?: string | null props
+- Constructs ArtistSummary and passes it to oggleFollowArtist so the store has metadata immediately on follow (no extra API round-trip)
+
+### Artist Page (src/app/(main)/artist/[id]/page.tsx)
+
+- Passes rtistName={artist.name} and rtistImageUrl={artist.image_url} to FollowArtistButton
+
+### Sidebar (src/components/layout/Sidebar.tsx)
+
+- Added ollowedArtists from library store
+- Added "Following" section between Search link and library divider — shows up to 8 followed artists with circular image, name, and link to artist page. Hidden when sidebar is collapsed or no artists are followed.
+
+### NotificationBell (src/components/layout/NotificationBell.tsx) — new component
+
+- Fetches GET /api/v1/library/followed-artists/releases on mount
+- Bell icon with green badge showing count of releases since user last opened the panel
+- localStorage key sw_releases_last_seen stores the epoch of last panel open — count resets to 0 when panel is opened
+- Dropdown lists recent albums with cover art, album title, artist name; each links to the album page
+- Returns
+  ull when user follows no artists (no bell shown)
+
+### TopBar (src/components/layout/TopBar.tsx)
+
+- Added NotificationBell component to the right side, before the user profile button, inside a flex wrapper
+
+**Result:** 219 server + 123 client tests pass,
+pm run build → 0 errors
+
+**Key decisions:**
+
+- ollowedArtists array is kept in sync with ollowedArtistIds Set — the Set is for O(1) lookup in isFollowing(), the array is for ordered display in the sidebar
+- "Last seen" timestamp in localStorage is the simplest approach for tracking unread notifications without a new DB table or migration
+- Sidebar caps at 8 followed artists to avoid an excessively long list (full list is accessible via /library Artists tab)
