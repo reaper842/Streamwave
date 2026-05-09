@@ -1418,3 +1418,31 @@ const handlePlay = () => {
 - **Prisma 7 requires `PrismaPg` adapter** — `new PrismaClient()` with no args throws `PrismaClientInitializationError`. Always construct as `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`.
 - **Prisma generated client path** — `src/generated/prisma/client` (not `index.js`). Import as `import { PrismaClient } from './src/generated/prisma/client'`.
 - **6 playlists remain** in the database: My 3 Songs, Party Starters, Focus Mode, Late Night Drive, Workout Fuel, Chill Vibes (all owned by Demo User).
+
+---
+
+## Session 57 — 2026-05-09: CSP violations fix + connect-src hardening + cache-header cleanup
+
+**Goal:** Fix four CSP violations observed in Chromium DevTools on the playlist page (three picsum `img-src` blocks, one Howler.js `media-src data:` block), tighten `connect-src` for production, and remove a redundant `/_next/static/` Cache-Control override.
+
+**What was done:**
+
+- `next.config.ts` — trimmed CSP comment block from 9 verbose lines to 4 targeted lines documenting only non-obvious allowances
+- `next.config.ts` — fixed `img-src` CSP violation: `https://picsum.photos` was in the allowlist but Chrome CSP Level 2 validates redirect destinations; picsum redirects to `https://fastly.picsum.photos`. Added `fastly.picsum.photos` to `img-src` in dev only (seed data only; prod uses R2 URLs)
+- `next.config.ts` — fixed `media-src data:` CSP violation: Howler.js `_clearSound()` (called on every `howl.unload()` / track switch) sets `<audio>.src` to `data:audio/wav;base64,...` to stop in-flight downloads. Added `data:` to `media-src`
+- `next.config.ts` — made `connect-src` environment-aware: dev keeps `localhost:3001`; prod reads `NEXT_PUBLIC_API_URL`, validates it with `new URL(raw).origin` (strips path/trailing slash/query), and throws at config-load time if missing or malformed — no silent failure
+- `next.config.ts` — removed redundant `/_next/static/(.*)` `Cache-Control: public, max-age=31536000, immutable` rule; Next.js sets this automatically and the custom rule was ignored (with a build warning)
+- Installed `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` for upcoming M5 drag-and-drop (packages committed, implementation deferred)
+
+**What was NOT completed (carry to next session):**
+
+- Drag-and-drop track reorder in playlist `TrackList` using `@dnd-kit` (packages installed, not implemented)
+- Playwright e2e test: create playlist → add tracks → reorder → rename → delete
+
+**Key technical notes for future sessions:**
+
+- **picsum.photos → fastly.picsum.photos redirect** — Chrome CSP Level 2 validates both the initial URL and the redirect destination. `img-src https://picsum.photos` is not sufficient; `https://fastly.picsum.photos` must also be listed. The dev-only guard uses `process.env['NODE_ENV'] !== 'production'` inside the `securityHeaders` array (evaluated at module load time).
+- **Howler.js `_clearSound()` and `media-src data:`** — Every `howl.unload()` call (including every track switch in `engine.ts`) triggers `_clearSound()`, which sets the `<audio>` element's `src` to a base64-encoded silent WAV `data:` URI to stop in-flight HTTP downloads. This is internal Howler.js behavior (`howler.core.js:2193`) — it cannot be removed without forking the library. `data:` must remain in `media-src`.
+- **`connect-src` uses `NEXT_PUBLIC_API_URL`** — This is the client-side fetch base URL (`src/lib/api/client.ts`). `FASTIFY_API_URL` is server→server only (NextAuth Credentials provider → Fastify); it never originates from the browser and is irrelevant to CSP `connect-src`.
+- **`new URL(raw).origin` strips the path** — If `NEXT_PUBLIC_API_URL` is set to `https://api.streamwave.app/api/v1` (common operator mistake), `.origin` returns `https://api.streamwave.app`, preventing a CSP that over-allows or under-allows based on a trailing path.
+- **`/_next/static/` Cache-Control is Next.js-managed** — Custom overrides in `headers()` are silently ignored by Next.js for this path (with a build warning). The rule is now removed; the `public/` assets rule (`/(.+)`, 1-day cache) remains and is still necessary.
