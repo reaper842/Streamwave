@@ -36,24 +36,43 @@ const securityHeaders = [
         },
       ]
     : []),
-  // Content Security Policy
-  // - default-src 'self': only load resources from the same origin by default
-  // - script-src: allow Next.js inline scripts ('unsafe-inline' needed for RSC/hydration)
-  // - style-src: allow inline styles (Tailwind injects styles at runtime)
-  // - img-src: allow same-origin, data URIs, and picsum.photos (dev placeholder images)
-  // - media-src: allow audio/video from same-origin and blob: (Howler.js creates blob URLs)
-  // - connect-src: allow API calls to self and the Fastify backend
-  // - font-src: allow Google Fonts
-  // - frame-ancestors: disallow embedding (XFO above handles older browsers)
+  // CSP — non-obvious allowances:
+  //   script-src  'unsafe-inline' 'unsafe-eval' — Next.js RSC hydration + Turbopack dev HMR
+  //   img-src     fastly.picsum.photos (dev) — picsum.photos redirects here; Chrome CSP L2 checks both hops
+  //   media-src   data: — Howler.js _clearSound() sets <audio>.src to silent WAV on howl.unload()
+  //   connect-src localhost:3001 (dev) / NEXT_PUBLIC_API_URL (prod) — browser → Fastify API; throws if unset or invalid in prod
   {
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob: https://picsum.photos https://images.unsplash.com",
-      "media-src 'self' blob:",
-      "connect-src 'self' http://localhost:3001 https://localhost:3001",
+      [
+        "img-src 'self' data: blob: https://picsum.photos",
+        process.env['NODE_ENV'] !== 'production' ? 'https://fastly.picsum.photos' : null,
+        'https://images.unsplash.com',
+      ]
+        .filter(Boolean)
+        .join(' '),
+      "media-src 'self' blob: data:",
+      [
+        "connect-src 'self'",
+        process.env['NODE_ENV'] !== 'production'
+          ? 'http://localhost:3001 https://localhost:3001'
+          : (() => {
+              const raw = process.env['NEXT_PUBLIC_API_URL']
+              if (!raw) {
+                throw new Error('NEXT_PUBLIC_API_URL must be set in production for CSP connect-src')
+              }
+              try {
+                return new URL(raw).origin
+              } catch {
+                throw new Error(`NEXT_PUBLIC_API_URL must be a valid URL (got: ${raw})`)
+              }
+            })(),
+      ]
+        .filter(Boolean)
+        .join(' '),
       "font-src 'self' https://fonts.gstatic.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -74,23 +93,12 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // Both caching rules are production-only. In development, Turbopack reuses the same chunk
-      // URLs when recompiling modified code, so ANY positive Cache-Control max-age causes the
-      // browser to serve stale JS after the next recompile — even after clearing site data,
-      // because the fresh fetch re-populates the cache for another day. In production, Next.js
-      // generates content-hashed filenames so long-term caching is safe.
+      // Production-only: Turbopack reuses chunk URLs across recompiles, so any max-age > 0 in dev
+      // causes the browser to serve stale JS — even after clearing site data. In production,
+      // content-hashed filenames make long-term caching safe.
+      // /_next/static/ Cache-Control (immutable, 1 year) is set automatically by Next.js — no rule needed.
       ...(process.env['NODE_ENV'] === 'production'
         ? [
-            {
-              // Immutable 1-year cache for hashed static chunks
-              source: '/_next/static/(.*)',
-              headers: [
-                {
-                  key: 'Cache-Control',
-                  value: 'public, max-age=31536000, immutable',
-                },
-              ],
-            },
             {
               // 1-day cache for public/ assets (images, audio)
               source: '/(.+)',
