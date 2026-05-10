@@ -18,21 +18,14 @@ interface SavedAlbumItem {
   saved_at: string
 }
 
-interface FollowedArtistItem {
-  id: string
-  name: string
-  image_url: string | null
-  genre: string | null
-}
-
 export default function LibraryPage() {
   const [activeTab, setActiveTab] = useState<Tab>('playlists')
   const [savedAlbums, setSavedAlbums] = useState<SavedAlbumItem[]>([])
-  const [followedArtists, setFollowedArtists] = useState<FollowedArtistItem[]>([])
 
   const playlists = useLibraryStore((s) => s.playlists)
   const fetchPlaylists = useLibraryStore((s) => s.fetchPlaylists)
   const createPlaylist = useLibraryStore((s) => s.createPlaylist)
+  const followedArtists = useLibraryStore((s) => s.followedArtists)
 
   const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 
@@ -52,16 +45,7 @@ export default function LibraryPage() {
         }
       })()
     }
-    if (activeTab === 'artists' && followedArtists.length === 0) {
-      void (async () => {
-        const res = await fetch('/api/v1/library/followed-artists', { credentials: 'include' })
-        if (res.ok) {
-          const json = (await res.json()) as { data: FollowedArtistItem[] }
-          setFollowedArtists(json.data)
-        }
-      })()
-    }
-  }, [activeTab, savedAlbums.length, followedArtists.length])
+  }, [activeTab, savedAlbums.length])
 
   const handleCreatePlaylist = async () => {
     const name = `My Playlist #${playlists.length + 1}`
