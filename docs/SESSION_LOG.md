@@ -1600,3 +1600,34 @@ pm run build → 0 errors
 - Single click on the track row (anywhere except grip handle or remove button) plays the track — no double-click required
 - The grip handle (`setActivatorNodeRef`) only activates drag, so clicks on the rest of the row don't conflict with drag behaviour
 - `e.stopPropagation()` on the remove button ensures clicking × removes the track without also triggering play
+
+---
+
+## Session 65 — 2026-05-10: Bug Fix — Queue click-to-play silent audio
+
+**Goal:** Fix the bug where clicking a song in the Queue panel showed the play UI (highlighted row, play overlay) but produced no audible playback.
+
+**What was done:**
+
+- `src/lib/audio/engine.ts` — added `if (this.howl === howl)` guard inside the `onend` callback in `buildHowl()`. Captures the specific `howl` constant in the closure so stale Howl instances cannot invoke `handleTrackEnd()` after they've been replaced.
+
+**Root cause:**
+
+1. User clicks "Dark Fire" in Queue → `jumpToIndex(1)` → `playAtIndex(1)` updates `this.howl` to the new Dark Fire Howl and calls `this.howl?.unload()` on the old Silver Echo Howl.
+2. Howler.js `unload()` sets `<audio>.src` to a silent WAV `data:` URI internally (`howler.core.js:_clearSound`) to abort the in-flight audio download.
+3. That data URI loads and plays instantly (it is literally silent audio), firing the `ended` event on the old Silver Echo Howl.
+4. Silver Echo's `onend` callback was unconditional — it called `this.handleTrackEnd()` without checking whether Silver Echo was still the active Howl.
+5. At that point `this.state.queueIndex = 1` (Dark Fire) because `playAtIndex` already advanced state. So `getNextIndex()` returns 2 or `-1`.
+6. If there are more tracks: `playAtIndex(2)` fires, unloading the Dark Fire Howl before it even finishes loading → Dark Fire never plays (silent).
+7. If Dark Fire is the last track: `setState({ isPlaying: false })` — Dark Fire's Howl plays audio but the progress timer is stopped and the UI shows paused.
+
+**Fix:** Capture `const howl = new Howl(...)` in the `buildHowl` closure (already done — it's how `onloaderror` calls `howl.load()`). Add `if (this.howl === howl)` check in `onend` so only the currently-active Howl can advance the queue. Mirrors the existing `if (this.howl !== newHowl) return` guard in `playAtIndex`'s `onReady` callback.
+
+**Bonus:** Also prevents a latent double-advance bug on natural track end — `unload()` in `handleTrackEnd`'s `playAtIndex(next)` call would have fired `onend` a second time, calling `handleTrackEnd` twice and skipping a track.
+
+**Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.
+
+**Key technical notes for future sessions:**
+
+- `buildHowl()` creates a closure over `howl`. Every callback (`onloaderror`, `onend`) should check `this.howl === howl` before acting on `this.state`, because `this.howl` may have been replaced by a newer `playAtIndex` call between when the Howl was created and when the callback fires.
+- Howler.js `_clearSound()` / `unload()` always sets `<audio>.src` to a data URI — this is unavoidable Howler internals. Any `onend` callback that doesn't guard against this will fire spuriously on every track switch.
