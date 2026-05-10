@@ -1631,3 +1631,33 @@ pm run build → 0 errors
 
 - `buildHowl()` creates a closure over `howl`. Every callback (`onloaderror`, `onend`) should check `this.howl === howl` before acting on `this.state`, because `this.howl` may have been replaced by a newer `playAtIndex` call between when the Howl was created and when the callback fires.
 - Howler.js `_clearSound()` / `unload()` always sets `<audio>.src` to a data URI — this is unavoidable Howler internals. Any `onend` callback that doesn't guard against this will fire spuriously on every track switch.
+
+---
+
+## Session 66 — 2026-05-10: Bug Fix — "Add to queue" tracks not playing from Queue panel
+
+**Goal:** Fix the bug where tracks added via the right-click "Add to queue" context menu appear in the Queue panel but produce no audio when clicked.
+
+**Root cause:**
+
+`TrackRow.tsx` context menu "Add to queue" called `addToQueue({ ..., streamUrl: '' })` — it passed an empty string because the component only has track metadata from the page render, not a signed stream URL. When the user later clicked that track in the Queue panel, `jumpToIndex(index)` → `playAtIndex(index)` → `buildHowl('')` created a Howler instance with an empty `src`. Howler fired `onloaderror` on all 3 retries and silently gave up. No audio, no error shown to the user.
+
+This is also why the bug only affected tracks added via context menu "Add to queue" but NOT tracks in the queue when playing a full playlist — `playPlaylist` / `playFromTrackIds` call `fetchQueueTrack(id)` which fetches real stream URLs before building the queue.
+
+**Fix:**
+
+1. `src/stores/player.ts` — Added `addTrackToQueue(trackId: string): Promise<void>` action. It calls the existing `fetchQueueTrack(trackId)` helper (which fetches both metadata and stream URL from the API) and then calls `getAudioEngine().addToQueue(track)` with the real `streamUrl`.
+
+2. `src/components/content/TrackRow.tsx` — Replaced `addToQueue` import with `addTrackToQueue`. Context menu "Add to queue" now calls `void addTrackToQueue(track.id)` — a single line that handles fetch + enqueue.
+
+**Files changed:**
+
+- `src/stores/player.ts` — new `addTrackToQueue` async action added to `PlayerState` interface and store implementation
+- `src/components/content/TrackRow.tsx` — context menu "Add to queue" uses `addTrackToQueue(track.id)` instead of `addToQueue({ ..., streamUrl: '' })`
+
+**Key technical notes for future sessions:**
+
+- **`addToQueue` requires a full `QueueTrack` with a real `streamUrl`** — never pass `streamUrl: ''`. The engine calls `buildHowl(track.streamUrl)` directly at play time; an empty string is a silent failure. Always use `addTrackToQueue(trackId)` from UI components that only have track metadata.
+- **`fetchQueueTrack(trackId)` is the canonical way to build a `QueueTrack`** — it calls `/tracks/:id` (metadata) and `/tracks/:id/stream` (signed URL) in parallel. Any place that needs to enqueue a track by ID should go through this helper.
+
+**Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.

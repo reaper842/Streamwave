@@ -41,7 +41,7 @@ export function TrackRow({
 
   const playTrack = usePlayerStore((s) => s.playTrack)
   const playFromTrackIds = usePlayerStore((s) => s.playFromTrackIds)
-  const addToQueue = usePlayerStore((s) => s.addToQueue)
+  const addTrackToQueue = usePlayerStore((s) => s.addTrackToQueue)
   const currentTrack = usePlayerStore((s) => s.currentTrack)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
 
@@ -62,16 +62,7 @@ export function TrackRow({
   const contextItems = [
     {
       label: 'Add to queue',
-      onClick: () =>
-        addToQueue({
-          id: track.id,
-          title: track.title,
-          artistName: track.artist.name,
-          albumTitle: track.album.title,
-          albumCover: track.album.cover_url,
-          streamUrl: '',
-          duration_ms: track.duration_ms,
-        }),
+      onClick: () => void addTrackToQueue(track.id),
     },
     {
       label: 'Add to playlist',

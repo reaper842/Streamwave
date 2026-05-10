@@ -54,6 +54,7 @@ interface PlayerState {
   setShuffle: (enabled: boolean) => void
   setRepeat: (mode: RepeatMode) => void
   addToQueue: (track: QueueTrack) => void
+  addTrackToQueue: (trackId: string) => Promise<void>
   removeFromQueue: (index: number) => void
   reorderQueue: (fromIndex: number, toIndex: number) => void
   jumpToIndex: (index: number) => void
@@ -188,6 +189,14 @@ export const usePlayerStore = create<PlayerState>()(
       setShuffle: (enabled) => getAudioEngine().setShuffle(enabled),
       setRepeat: (mode) => getAudioEngine().setRepeat(mode),
       addToQueue: (track) => getAudioEngine().addToQueue(track),
+      addTrackToQueue: async (trackId) => {
+        try {
+          const track = await fetchQueueTrack(trackId)
+          getAudioEngine().addToQueue(track)
+        } catch (err) {
+          console.error('[PlayerStore] addTrackToQueue failed:', err)
+        }
+      },
       removeFromQueue: (index) => getAudioEngine().removeFromQueue(index),
       reorderQueue: (fromIndex, toIndex) => getAudioEngine().reorderQueue(fromIndex, toIndex),
       jumpToIndex: (index) => getAudioEngine().jumpToIndex(index),
