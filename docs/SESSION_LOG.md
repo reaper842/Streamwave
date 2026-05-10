@@ -1661,3 +1661,28 @@ This is also why the bug only affected tracks added via context menu "Add to que
 - **`fetchQueueTrack(trackId)` is the canonical way to build a `QueueTrack`** — it calls `/tracks/:id` (metadata) and `/tracks/:id/stream` (signed URL) in parallel. Any place that needs to enqueue a track by ID should go through this helper.
 
 **Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.
+
+---
+
+## Session 67 — 2026-05-10: Bug Fix — Library Artists Tab Not Showing Followed Artists
+
+**Goal:** Make the Library page "Artists" tab show the same list of followed artists that appears in the sidebar "Following" section.
+
+**Root cause:**
+
+`src/app/(main)/library/page.tsx` used a local `useState` for `followedArtists` and fetched from `/api/v1/library/followed-artists` only when the Artists tab was first opened (and only if the local array was empty). This created two problems:
+
+1. After following or unfollowing an artist via the artist page, the local state was stale — it only refreshed on the next tab-open with an empty array.
+2. The local state was completely separate from `useLibraryStore.followedArtists`, which is the same data already loaded globally by `fetchLibrary()` on app boot and kept in sync by `toggleFollowArtist`.
+
+**Fix:**
+
+Removed local `followedArtists` state and the API fetch for artists from the library page. The Artists tab now reads directly from `useLibraryStore((s) => s.followedArtists)`. Since `useLibraryStore.followedArtists` is already populated (from `fetchLibrary()` in the main layout on mount) and stays reactive to follow/unfollow actions, the Artists tab and the sidebar "Following" section are now always in sync — they share the same Zustand state.
+
+Also removed the now-unused `FollowedArtistItem` local interface (replaced by `ArtistSummary` from the store, which has the same shape minus `genre` — the page only showed a static "Artist" label anyway).
+
+**Files changed:**
+
+- `src/app/(main)/library/page.tsx` — removed local artist state + fetch; reads `followedArtists` from `useLibraryStore`
+
+**Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.
