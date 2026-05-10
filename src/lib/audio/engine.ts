@@ -365,6 +365,11 @@ class AudioEngine {
     }
   }
 
+  jumpToIndex(index: number) {
+    if (index < 0 || index >= this.state.queue.length) return
+    this.playAtIndex(index)
+  }
+
   next() {
     const nextIndex = this.getNextIndex()
     if (nextIndex === -1) return

@@ -56,6 +56,7 @@ interface PlayerState {
   addToQueue: (track: QueueTrack) => void
   removeFromQueue: (index: number) => void
   reorderQueue: (fromIndex: number, toIndex: number) => void
+  jumpToIndex: (index: number) => void
   clearQueue: () => void
 
   // Internal — called by AudioEngine state sync
@@ -189,6 +190,7 @@ export const usePlayerStore = create<PlayerState>()(
       addToQueue: (track) => getAudioEngine().addToQueue(track),
       removeFromQueue: (index) => getAudioEngine().removeFromQueue(index),
       reorderQueue: (fromIndex, toIndex) => getAudioEngine().reorderQueue(fromIndex, toIndex),
+      jumpToIndex: (index) => getAudioEngine().jumpToIndex(index),
       clearQueue: () => getAudioEngine().clearQueue(),
     }),
     { name: 'PlayerStore' },
