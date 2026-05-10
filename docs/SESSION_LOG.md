@@ -1549,3 +1549,54 @@ pm run build → 0 errors
 - ollowedArtists array is kept in sync with ollowedArtistIds Set — the Set is for O(1) lookup in isFollowing(), the array is for ordered display in the sidebar
 - "Last seen" timestamp in localStorage is the simplest approach for tracking unread notifications without a new DB table or migration
 - Sidebar caps at 8 followed artists to avoid an excessively long list (full list is accessible via /library Artists tab)
+
+---
+
+## Session 63 — 2026-05-10: feat — Queue drag-to-reorder
+
+**Goal:** Let users drag and move songs in the "Next in queue" section of the QueuePanel to change playback order.
+
+**What was done:**
+
+- Modified `src/components/playback/QueuePanel.tsx`:
+  - Added `DndContext` + `SortableContext` from `@dnd-kit/core`/`@dnd-kit/sortable` around the "Next in queue" list
+  - Added `SortableQueueRow` (defined inline) — a `useSortable` wrapper that adds a `GripVertical` drag handle and delegates the track display to the existing `QueueTrackRow`
+  - Grip handles use JS hover state (`useState` + `onMouseEnter`/`onMouseLeave`) — same pattern as `SortableTrackRow` (Session 60) to avoid CSS named-group ambiguity
+  - `DndContext id="dnd-queue"` prevents dnd-kit's auto-incremented ARIA ID from causing hydration mismatch
+  - Uses absolute queue indices (e.g. `queueIndex + 1 + i`) as sortable item IDs — stable during a drag, unique even when the same track appears multiple times in the queue
+  - `onDragEnd` calls `reorderQueue(Number(active.id), Number(over.id))` — maps directly to `AudioEngine.reorderQueue(fromAbsoluteIndex, toAbsoluteIndex)` which is already implemented
+  - `PointerSensor` with `activationConstraint: { distance: 5 }` prevents accidental drags on row clicks
+
+**No backend changes** — `reorderQueue` already existed in both `AudioEngine` and `usePlayerStore`.
+
+**Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.
+
+**Key decisions:**
+
+- "Now Playing" row is intentionally non-draggable — it makes no sense to move the currently-playing track within its own queue position
+- Used absolute queue indices as sortable IDs rather than `track.id` — allows the same track to appear multiple times in the queue without ID collisions
+- No local state needed — `reorderQueue` in AudioEngine is synchronous and triggers Zustand sync immediately, so the Zustand state updates before the next render cycle
+
+---
+
+## Session 64 — 2026-05-10: feat — Click-to-play from the Queue panel
+
+**Goal:** Let users click any upcoming song in the Queue panel to jump to and immediately play it.
+
+**What was done:**
+
+- `src/lib/audio/engine.ts` — added public `jumpToIndex(index: number)` method; validates bounds then delegates to the existing private `playAtIndex(index)`
+- `src/stores/player.ts` — added `jumpToIndex: (index: number) => void` to `PlayerState` interface and store implementation (`getAudioEngine().jumpToIndex(index)`)
+- `src/components/playback/QueuePanel.tsx`:
+  - `QueueTrackRowProps` — added `onPlay: (() => void) | null`
+  - `QueueTrackRow` — when `onPlay` is provided: `onClick` on the row div, `cursor-pointer`, keyboard handler (Enter/Space), `aria-label="Play {title}"`, `role="button"`, `tabIndex={0}`. Play icon (`<Play size={14}>`) overlay on album art visible on `group-hover`. Remove button calls `e.stopPropagation()` to avoid triggering play. "Now Playing" row passes `onPlay={null}` (not playable — already playing)
+  - `SortableQueueRowProps` — added `onPlay: () => void`; forwarded to `QueueTrackRow`
+  - `QueuePanel` — subscribed to `jumpToIndex` from store; passes `onPlay={() => jumpToIndex(absoluteIndex)}` to each `SortableQueueRow`
+
+**Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.
+
+**Key decisions:**
+
+- Single click on the track row (anywhere except grip handle or remove button) plays the track — no double-click required
+- The grip handle (`setActivatorNodeRef`) only activates drag, so clicks on the rest of the row don't conflict with drag behaviour
+- `e.stopPropagation()` on the remove button ensures clicking × removes the track without also triggering play

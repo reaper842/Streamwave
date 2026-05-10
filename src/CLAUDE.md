@@ -273,13 +273,16 @@ const MyModal = dynamic(() => import('@/components/...').then((m) => ({ default:
 
 Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlaylistDialog` (PlaylistControls).
 
-## Queue Panel (Session 62) — `src/components/playback/`
+## Queue Panel (Sessions 62–64) — `src/components/playback/`
 
 - `QueueButton` — icon button (`ListMusic`) in PlaybackBar right section. `isOpen` prop controls color (accent-primary vs secondary); `onToggle` callback. `aria-pressed` reflects state.
-- `QueuePanel` — fixed right panel: `right-0`, `bottom-[90px]`, `top: 64px` (inline style, matches TopBar), `w-[340px]`. Two sections: **Now Playing** (current queue[queueIndex], accent-green title) and **Next in queue** (queue.slice(queueIndex + 1)). Returns `null` when closed.
-- Remove button on each upcoming track calls `removeFromQueue(queueIndex + 1 + i)` — absolute index in the queue array.
+- `QueuePanel` — fixed right panel: `right-0`, `bottom-[90px]`, `top: 64px` (inline style), `w-[340px]`. Two sections: **Now Playing** and **Next in queue**. Returns `null` when closed.
+- **Drag-to-reorder** (Session 63): "Next in queue" list wrapped in `DndContext id="dnd-queue"` + `SortableContext`. Each item is a `SortableQueueRow` with a `GripVertical` handle (JS hover state). Sortable IDs are absolute queue indices as strings (e.g. `String(queueIndex + 1 + i)`) — unique even for duplicate tracks. `onDragEnd` calls `reorderQueue(Number(active.id), Number(over.id))`.
+- **Click-to-play** (Session 64): Each `SortableQueueRow` receives `onPlay={() => jumpToIndex(absoluteIndex)}`. `QueueTrackRow` renders a `black/50` play icon overlay on album art on `group-hover` and sets `onClick`, `cursor-pointer`, `role="button"`, `tabIndex`, and keyboard handler (Enter/Space). Remove button uses `e.stopPropagation()` to prevent triggering play.
+- `AudioEngine.jumpToIndex(index)` — public method added in Session 64; bounds-checks then delegates to `playAtIndex`. `usePlayerStore.jumpToIndex` wires it.
+- Remove button calls `removeFromQueue(queueIndex + 1 + i)` — absolute index in queue.
 - **Zustand selector rule**: use separate `usePlayerStore((s) => s.field)` calls per field — never an inline object selector (causes infinite render loop).
-- `PlaybackBar.tsx` manages `isQueueOpen` state (`useState(false)`); right grid section wraps `<VolumeSlider /> + <QueueButton />` in a flex div.
+- `PlaybackBar.tsx` manages `isQueueOpen` state; right section wraps `<VolumeSlider /> + <QueueButton />` in a flex div.
 
 ## Test Selectors (data-testid)
 
