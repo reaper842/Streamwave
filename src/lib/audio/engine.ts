@@ -134,7 +134,15 @@ class AudioEngine {
         this.setState({ isPlaying: false, error: message })
       },
       onend: () => {
-        this.handleTrackEnd()
+        // Guard: only advance the queue if this Howl is still the active one.
+        // When playAtIndex unloads a Howl via howl.unload(), Howler.js internally
+        // sets <audio>.src to a silent WAV data URI to abort the download. That
+        // data URI plays instantly and fires `ended`, which would invoke this
+        // callback for the old, already-replaced Howl — causing handleTrackEnd to
+        // advance the queue past the track the user just jumped to.
+        if (this.howl === howl) {
+          this.handleTrackEnd()
+        }
       },
     })
     return howl
