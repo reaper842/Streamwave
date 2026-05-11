@@ -144,8 +144,8 @@ Why this matters: `playTrack(trackId)` creates a **1-song queue** (`engine.play(
 
 ## Content Buttons (M5) — `src/components/content/`
 
-- `FollowArtistButton` — client toggle button wired to `useLibraryStore.toggleFollowArtist`; shows "Follow"/"Following"
-- `SaveAlbumButton` — client toggle button wired to `useLibraryStore.toggleSaveAlbum`; shows "Save"/"Saved"
+- `FollowArtistButton` — client toggle button wired to `useLibraryStore.toggleFollowArtist`; accepts `artistName?`/`artistImageUrl?` props for immediate sidebar update
+- `SaveAlbumButton` — client toggle button wired to `useLibraryStore.toggleSaveAlbum`; accepts `albumData?: SavedAlbumSummary` prop so Library Albums tab updates instantly without a re-fetch; album RSC page passes this from its fetched data
 
 ### Drag-and-Drop Track Reorder (Sessions 58–60) — `@dnd-kit`
 
@@ -196,12 +196,15 @@ Key rules:
 
 ## Library Store (M5) — `src/stores/library.ts`
 
-- `useLibraryStore` — state: `likedSongIds`/`savedAlbumIds`/`followedArtistIds` (Sets) + `followedArtists` (ArtistSummary[]) + `playlists` array
+- `useLibraryStore` — state: `likedSongIds`/`savedAlbumIds`/`followedArtistIds` (Sets) + `savedAlbums` (SavedAlbumSummary[]) + `followedArtists` (ArtistSummary[]) + `playlists` array
 - `fetchLibrary()` — bootstraps all 4 endpoints in parallel; called in `(main)/layout.tsx` on mount
 - Toggle actions (`toggleLike`, `toggleSaveAlbum`, `toggleFollowArtist`) — optimistic updates with snapshot-before + revert-on-error
+- `toggleSaveAlbum(albumId, albumData?)` — optional `SavedAlbumSummary` passed by `SaveAlbumButton`; prepends to `savedAlbums` array on save, filters on unsave; rollback restores both the Set and the array
 - `toggleFollowArtist(artistId, artistData?)` — optional `ArtistSummary` passed by `FollowArtistButton` so sidebar updates immediately without a refetch
+- `SavedAlbumSummary` (exported from `library.ts`) — `{ id, title, cover_url, artist: { id, name } }` — same pattern as `ArtistSummary`
 - `ArtistSummary` (exported from `library.ts`) — `{ id, name, image_url }` used by both the store and `FollowArtistButton`
-- `followedArtistIds` Set used for O(1) `isFollowing()` lookup; `followedArtists` array used for sidebar ordered display
+- ID Sets (`savedAlbumIds`, `followedArtistIds`) used for O(1) `isSaved()`/`isFollowing()` lookup; full-object arrays (`savedAlbums`, `followedArtists`) used for ordered display in Library page tabs
+- **Pattern rule**: For any library feature that needs to display full item metadata, keep BOTH a Set (for O(1) lookup) AND a full-object array (for rendering). Pass the object from RSC page data through the button props to `toggleX` — avoids a second API fetch.
 - Store does NOT call toast directly — expose `error` state; components react to it
 - `usePlayerStore.playFromTrackIds(trackIds[], startIndex?)` — plays arbitrary track ID lists (used by liked songs)
 
