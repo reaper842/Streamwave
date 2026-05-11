@@ -63,7 +63,9 @@ function resetStore() {
   useLibraryStore.setState({
     likedSongIds: new Set(),
     savedAlbumIds: new Set(),
+    savedAlbums: [],
     followedArtistIds: new Set(),
+    followedArtists: [],
     playlists: [],
     isLoading: false,
     error: null,
@@ -104,12 +106,19 @@ describe('useLibraryStore — initial state', () => {
 describe('useLibraryStore — fetchLibrary', () => {
   beforeEach(resetStore)
 
-  it('populates all four sets and playlists on success', async () => {
+  it('populates all four sets, savedAlbums array, and playlists on success', async () => {
+    const albumData = {
+      id: 'album-1',
+      title: 'Album One',
+      cover_url: null,
+      artist: { id: 'artist-1', name: 'Artist One' },
+    }
     mockGet.mockImplementation((path: string) => {
       if (path.includes('liked-songs'))
         return Promise.resolve({ data: [{ id: 'track-1' }, { id: 'track-2' }] })
-      if (path.includes('saved-albums')) return Promise.resolve({ data: [{ id: 'album-1' }] })
-      if (path.includes('followed-artists')) return Promise.resolve({ data: [{ id: 'artist-1' }] })
+      if (path.includes('saved-albums')) return Promise.resolve({ data: [albumData] })
+      if (path.includes('followed-artists'))
+        return Promise.resolve({ data: [{ id: 'artist-1', name: 'Artist One', image_url: null }] })
       // playlists
       return Promise.resolve({ data: [makePlaylist('pl-1')] })
     })
@@ -120,6 +129,9 @@ describe('useLibraryStore — fetchLibrary', () => {
     expect(s.likedSongIds.has('track-1')).toBe(true)
     expect(s.likedSongIds.has('track-2')).toBe(true)
     expect(s.savedAlbumIds.has('album-1')).toBe(true)
+    expect(s.savedAlbums).toHaveLength(1)
+    expect(s.savedAlbums[0].id).toBe('album-1')
+    expect(s.savedAlbums[0].title).toBe('Album One')
     expect(s.followedArtistIds.has('artist-1')).toBe(true)
     expect(s.playlists).toHaveLength(1)
     expect(s.playlists[0].id).toBe('pl-1')
@@ -172,6 +184,13 @@ describe('useLibraryStore — toggleLike', () => {
 // ── toggleSaveAlbum ───────────────────────────────────────────────────────────
 
 describe('useLibraryStore — toggleSaveAlbum', () => {
+  const albumData = {
+    id: 'album-1',
+    title: 'Album One',
+    cover_url: null,
+    artist: { id: 'a1', name: 'Artist' },
+  }
+
   beforeEach(resetStore)
 
   it('optimistically saves album and calls POST', async () => {
@@ -181,18 +200,37 @@ describe('useLibraryStore — toggleSaveAlbum', () => {
     expect(mockPost).toHaveBeenCalledWith('/library/saved-albums/album-1')
   })
 
-  it('optimistically unsaves album and calls DELETE', async () => {
-    useLibraryStore.setState({ savedAlbumIds: new Set(['album-1']) })
+  it('prepends albumData to savedAlbums array when saving with data', async () => {
+    mockPost.mockResolvedValue({})
+    await useLibraryStore.getState().toggleSaveAlbum('album-1', albumData)
+    const s = useLibraryStore.getState()
+    expect(s.savedAlbums).toHaveLength(1)
+    expect(s.savedAlbums[0].id).toBe('album-1')
+    expect(s.savedAlbums[0].title).toBe('Album One')
+  })
+
+  it('does not change savedAlbums array when saving without data', async () => {
+    mockPost.mockResolvedValue({})
+    await useLibraryStore.getState().toggleSaveAlbum('album-1')
+    expect(useLibraryStore.getState().savedAlbums).toHaveLength(0)
+  })
+
+  it('optimistically unsaves album, removes from savedAlbums array, and calls DELETE', async () => {
+    useLibraryStore.setState({ savedAlbumIds: new Set(['album-1']), savedAlbums: [albumData] })
     mockDelete.mockResolvedValue({})
     await useLibraryStore.getState().toggleSaveAlbum('album-1')
-    expect(useLibraryStore.getState().isSaved('album-1')).toBe(false)
+    const s = useLibraryStore.getState()
+    expect(s.isSaved('album-1')).toBe(false)
+    expect(s.savedAlbums).toHaveLength(0)
     expect(mockDelete).toHaveBeenCalledWith('/library/saved-albums/album-1')
   })
 
-  it('rolls back save on API error', async () => {
+  it('rolls back savedAlbumIds and savedAlbums on API error', async () => {
     mockPost.mockRejectedValue(new Error('fail'))
-    await useLibraryStore.getState().toggleSaveAlbum('album-1')
-    expect(useLibraryStore.getState().isSaved('album-1')).toBe(false)
+    await useLibraryStore.getState().toggleSaveAlbum('album-1', albumData)
+    const s = useLibraryStore.getState()
+    expect(s.isSaved('album-1')).toBe(false)
+    expect(s.savedAlbums).toHaveLength(0)
   })
 })
 
