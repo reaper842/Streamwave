@@ -67,7 +67,15 @@ export default async function AlbumPage({ params }: Props) {
       {/* Controls */}
       <div className="flex items-center gap-4 px-6 py-4">
         <PlayAlbumButton albumId={album.id} />
-        <SaveAlbumButton albumId={album.id} />
+        <SaveAlbumButton
+          albumId={album.id}
+          albumData={{
+            id: album.id,
+            title: album.title,
+            cover_url: album.cover_url,
+            artist: { id: album.artist.id, name: album.artist.name },
+          }}
+        />
       </div>
 
       {/* Track list */}

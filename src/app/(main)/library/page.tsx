@@ -10,42 +10,20 @@ import { cn } from '@/lib/utils/cn'
 
 type Tab = 'playlists' | 'artists' | 'albums'
 
-interface SavedAlbumItem {
-  id: string
-  title: string
-  cover_url: string | null
-  artist: { id: string; name: string }
-  saved_at: string
-}
-
 export default function LibraryPage() {
   const [activeTab, setActiveTab] = useState<Tab>('playlists')
-  const [savedAlbums, setSavedAlbums] = useState<SavedAlbumItem[]>([])
 
   const playlists = useLibraryStore((s) => s.playlists)
   const fetchPlaylists = useLibraryStore((s) => s.fetchPlaylists)
   const createPlaylist = useLibraryStore((s) => s.createPlaylist)
   const followedArtists = useLibraryStore((s) => s.followedArtists)
+  const savedAlbums = useLibraryStore((s) => s.savedAlbums)
 
   const playPlaylist = usePlayerStore((s) => s.playPlaylist)
 
   useEffect(() => {
     void fetchPlaylists()
   }, [fetchPlaylists])
-
-  useEffect(() => {
-    if (activeTab === 'albums' && savedAlbums.length === 0) {
-      void (async () => {
-        const res = await fetch('/api/v1/library/saved-albums?limit=100', {
-          credentials: 'include',
-        })
-        if (res.ok) {
-          const json = (await res.json()) as { data: SavedAlbumItem[] }
-          setSavedAlbums(json.data)
-        }
-      })()
-    }
-  }, [activeTab, savedAlbums.length])
 
   const handleCreatePlaylist = async () => {
     const name = `My Playlist #${playlists.length + 1}`

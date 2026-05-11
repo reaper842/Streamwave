@@ -1,13 +1,15 @@
 'use client'
 
 import { useLibraryStore } from '@/stores/library'
+import type { SavedAlbumSummary } from '@/stores/library'
 import { cn } from '@/lib/utils/cn'
 
 interface SaveAlbumButtonProps {
   albumId: string
+  albumData?: SavedAlbumSummary
 }
 
-export function SaveAlbumButton({ albumId }: SaveAlbumButtonProps) {
+export function SaveAlbumButton({ albumId, albumData }: SaveAlbumButtonProps) {
   const isSaved = useLibraryStore((s) => s.isSaved)
   const toggleSaveAlbum = useLibraryStore((s) => s.toggleSaveAlbum)
 
@@ -15,7 +17,7 @@ export function SaveAlbumButton({ albumId }: SaveAlbumButtonProps) {
 
   return (
     <button
-      onClick={() => void toggleSaveAlbum(albumId)}
+      onClick={() => void toggleSaveAlbum(albumId, albumData)}
       aria-label={saved ? 'Remove from library' : 'Save to library'}
       className={cn(
         'rounded-full border px-6 py-1.5 text-sm font-semibold transition-colors',

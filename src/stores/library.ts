@@ -23,11 +23,19 @@ export interface ArtistSummary {
   image_url: string | null
 }
 
+export interface SavedAlbumSummary {
+  id: string
+  title: string
+  cover_url: string | null
+  artist: { id: string; name: string }
+}
+
 // ── Store state ────────────────────────────────────────────────────────────────
 
 interface LibraryState {
   likedSongIds: Set<string>
   savedAlbumIds: Set<string>
+  savedAlbums: SavedAlbumSummary[]
   followedArtistIds: Set<string>
   followedArtists: ArtistSummary[]
   playlists: PlaylistSummary[]
@@ -43,7 +51,7 @@ interface LibraryState {
 
   // Saved albums
   isSaved: (albumId: string) => boolean
-  toggleSaveAlbum: (albumId: string) => Promise<void>
+  toggleSaveAlbum: (albumId: string, albumData?: SavedAlbumSummary) => Promise<void>
 
   // Followed artists
   isFollowing: (artistId: string) => boolean
@@ -76,6 +84,7 @@ export const useLibraryStore = create<LibraryState>()(
     (set, get) => ({
       likedSongIds: new Set<string>(),
       savedAlbumIds: new Set<string>(),
+      savedAlbums: [],
       followedArtistIds: new Set<string>(),
       followedArtists: [],
       playlists: [],
@@ -89,7 +98,7 @@ export const useLibraryStore = create<LibraryState>()(
         try {
           const [likedRes, albumsRes, artistsRes, playlistsRes] = await Promise.all([
             apiClient.get<{ id: string }[]>('/library/liked-songs?limit=100'),
-            apiClient.get<{ id: string }[]>('/library/saved-albums?limit=100'),
+            apiClient.get<SavedAlbumSummary[]>('/library/saved-albums?limit=100'),
             apiClient.get<ArtistSummary[]>('/library/followed-artists'),
             apiClient.get<PlaylistSummary[]>('/playlists'),
           ])
@@ -101,6 +110,7 @@ export const useLibraryStore = create<LibraryState>()(
           set({
             likedSongIds: likedIds,
             savedAlbumIds: albumIds,
+            savedAlbums: albumsRes.data,
             followedArtistIds: artistIds,
             followedArtists: artistsRes.data,
             playlists: playlistsRes.data,
@@ -145,17 +155,24 @@ export const useLibraryStore = create<LibraryState>()(
 
       isSaved: (albumId) => get().savedAlbumIds.has(albumId),
 
-      toggleSaveAlbum: async (albumId) => {
-        const { savedAlbumIds } = get()
+      toggleSaveAlbum: async (albumId, albumData?) => {
+        const { savedAlbumIds, savedAlbums } = get()
         const wasSaved = savedAlbumIds.has(albumId)
 
-        const next = new Set(savedAlbumIds)
+        const nextIds = new Set(savedAlbumIds)
         if (wasSaved) {
-          next.delete(albumId)
+          nextIds.delete(albumId)
         } else {
-          next.add(albumId)
+          nextIds.add(albumId)
         }
-        set({ savedAlbumIds: next })
+
+        const nextAlbums = wasSaved
+          ? savedAlbums.filter((a) => a.id !== albumId)
+          : albumData
+            ? [albumData, ...savedAlbums]
+            : savedAlbums
+
+        set({ savedAlbumIds: nextIds, savedAlbums: nextAlbums })
 
         try {
           if (wasSaved) {
@@ -164,7 +181,7 @@ export const useLibraryStore = create<LibraryState>()(
             await apiClient.post(`/library/saved-albums/${albumId}`)
           }
         } catch {
-          set({ savedAlbumIds: new Set(savedAlbumIds) })
+          set({ savedAlbumIds: new Set(savedAlbumIds), savedAlbums })
         }
       },
 
