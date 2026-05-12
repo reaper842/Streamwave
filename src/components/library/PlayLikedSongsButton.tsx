@@ -17,8 +17,9 @@ export function PlayLikedSongsButton({ trackIds }: PlayLikedSongsButtonProps) {
   }
 
   const handleShuffle = () => {
+    if (trackIds.length === 0) return
     setShuffle(true)
-    void playFromTrackIds(trackIds, 0)
+    void playFromTrackIds(trackIds, Math.floor(Math.random() * trackIds.length))
   }
 
   return (

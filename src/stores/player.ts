@@ -143,7 +143,12 @@ export const usePlayerStore = create<PlayerState>()(
 
           const trackIds = res.data.tracks.map((t) => t.id)
           const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
-          getAudioEngine().play(tracks, startIndex)
+          const engine = getAudioEngine()
+          const effectiveStart =
+            engine.getState().shuffleEnabled && startIndex === 0 && tracks.length > 1
+              ? Math.floor(Math.random() * tracks.length)
+              : startIndex
+          engine.play(tracks, effectiveStart)
         } catch (err) {
           console.error('[PlayerStore] playAlbum failed:', err)
           set({ isLoading: false, error: 'Failed to load album' })
@@ -159,7 +164,12 @@ export const usePlayerStore = create<PlayerState>()(
 
           const trackIds = res.data.tracks.map((t) => t.id)
           const tracks = await Promise.all(trackIds.map(fetchQueueTrack))
-          getAudioEngine().play(tracks, startIndex)
+          const engine = getAudioEngine()
+          const effectiveStart =
+            engine.getState().shuffleEnabled && startIndex === 0 && tracks.length > 1
+              ? Math.floor(Math.random() * tracks.length)
+              : startIndex
+          engine.play(tracks, effectiveStart)
         } catch (err) {
           console.error('[PlayerStore] playPlaylist failed:', err)
           set({ isLoading: false, error: 'Failed to load playlist' })

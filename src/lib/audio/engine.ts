@@ -180,7 +180,11 @@ class AudioEngine {
       const shufflePos = this.shuffleOrder.indexOf(queueIndex)
       const nextShufflePos = shufflePos + 1
       if (nextShufflePos >= this.shuffleOrder.length) {
-        return repeatMode === 'all' ? this.shuffleOrder[0] : -1
+        if (repeatMode !== 'all') return -1
+        // Regenerate shuffle order so the next cycle plays in a different random order.
+        // Put queueIndex at position 0 (just played, will be last in the new cycle).
+        this.shuffleOrder = buildShuffleOrder(queue.length, queueIndex)
+        return this.shuffleOrder.length > 1 ? this.shuffleOrder[1] : this.shuffleOrder[0]
       }
       return this.shuffleOrder[nextShufflePos]
     }
@@ -308,18 +312,9 @@ class AudioEngine {
     }
 
     const queue = [...tracks]
-    const shuffleOrder = this.state.shuffleEnabled
-      ? buildShuffleOrder(queue.length, startIndex)
-      : []
+    this.shuffleOrder = this.state.shuffleEnabled ? buildShuffleOrder(queue.length, startIndex) : []
 
-    this.setState({
-      queue,
-      shuffleEnabled: this.state.shuffleEnabled,
-      shuffleOrder,
-    } as Partial<AudioEngineState> & { shuffleOrder: number[] })
-    ;(this.state as unknown as { shuffleOrder: number[] }).shuffleOrder = shuffleOrder
-    this.shuffleOrder = shuffleOrder
-
+    this.setState({ queue })
     this.playAtIndex(startIndex)
   }
 
