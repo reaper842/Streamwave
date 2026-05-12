@@ -287,6 +287,20 @@ describe('usePlayerStore — playAlbum', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usePlayerStore.setState({ isLoading: false, error: null })
+    mockEngine.getState.mockReturnValue({
+      currentTrack: null,
+      isPlaying: false,
+      isLoading: false,
+      positionMs: 0,
+      durationMs: 0,
+      volume: 0.8,
+      isMuted: false,
+      queue: [],
+      queueIndex: -1,
+      shuffleEnabled: false,
+      repeatMode: 'off' as const,
+      error: null,
+    })
   })
 
   it('fetches album tracks and calls engine.play', async () => {
@@ -356,6 +370,55 @@ describe('usePlayerStore — playAlbum', () => {
 
     expect(usePlayerStore.getState().error).toBe('Failed to load album')
     expect(usePlayerStore.getState().isLoading).toBe(false)
+  })
+
+  it('starts from a random index when shuffle is enabled', async () => {
+    mockEngine.getState.mockReturnValue({
+      currentTrack: null,
+      isPlaying: false,
+      isLoading: false,
+      positionMs: 0,
+      durationMs: 0,
+      volume: 0.8,
+      isMuted: false,
+      queue: [],
+      queueIndex: -1,
+      shuffleEnabled: true,
+      repeatMode: 'off' as const,
+      error: null,
+    })
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+
+    const mockGet = vi.mocked(apiClient.get)
+    mockGet.mockResolvedValueOnce({ data: { tracks: [{ id: 'ta1' }, { id: 'ta2' }] } })
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'ta1',
+        title: 'T1',
+        duration_ms: 200_000,
+        track_number: 1,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/ta1.mp3', expiresAt: '' } })
+    mockGet.mockResolvedValueOnce({
+      data: {
+        id: 'ta2',
+        title: 'T2',
+        duration_ms: 180_000,
+        track_number: 2,
+        artist: { id: 'a1', name: 'A' },
+        album: { id: 'al1', title: 'AL', cover_url: null },
+      },
+    })
+    mockGet.mockResolvedValueOnce({ data: { streamUrl: 'https://cdn/ta2.mp3', expiresAt: '' } })
+
+    await usePlayerStore.getState().playAlbum('album-1')
+
+    const [, startIndex] = mockPlay.mock.calls[0] as [unknown[], number]
+    // Math.floor(0.5 * 2) = 1
+    expect(startIndex).toBe(1)
   })
 })
 

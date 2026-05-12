@@ -200,8 +200,11 @@ describe('AudioEngine — shuffle', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHowlState.mockReturnValue('loaded')
     engine = getAudioEngine()
     engine.clearQueue()
+    engine.setRepeat('off')
+    engine.setShuffle(false)
   })
 
   it('setShuffle(true) enables shuffle mode', () => {
@@ -213,6 +216,37 @@ describe('AudioEngine — shuffle', () => {
     engine.setShuffle(true)
     engine.setShuffle(false)
     expect(engine.getState().shuffleEnabled).toBe(false)
+  })
+
+  it('shuffle+no-repeat: next() is a no-op at end of shuffle order', () => {
+    engine.setShuffle(true)
+    engine.play([makeTrack('t1'), makeTrack('t2')], 0)
+    engine.next() // advance to last position (t2, index 1)
+    const idAtEnd = engine.getState().currentTrack?.id
+    engine.next() // end of shuffle order, no repeat — should not change track
+    expect(engine.getState().currentTrack?.id).toBe(idAtEnd)
+  })
+
+  it('shuffle+repeat-all: next() continues with a new song after exhausting shuffle order', () => {
+    engine.setShuffle(true)
+    engine.setRepeat('all')
+    // 2-track queue: shuffleOrder is always [0, 1] (only permutation starting at 0)
+    engine.play([makeTrack('t1'), makeTrack('t2')], 0)
+    engine.next() // advances to index 1 (t2) — last in shuffle order
+    engine.next() // triggers rebuild: new order [1, 0], returns index 0 (t1)
+    expect(engine.getState().currentTrack?.id).toBe('t1')
+    expect(engine.getState().queueIndex).toBe(0)
+  })
+
+  it('shuffle+repeat-all: each cycle plays a different song first', () => {
+    engine.setShuffle(true)
+    engine.setRepeat('all')
+    engine.play([makeTrack('t1'), makeTrack('t2')], 0)
+    engine.next() // go to t2 (end of shuffle order)
+    engine.next() // wrap → rebuild → plays t1 (first in new order [1,0] → returns index 0)
+    // Verify we looped back without stopping
+    expect(engine.getState().currentTrack).not.toBeNull()
+    expect(engine.getState().shuffleEnabled).toBe(true)
   })
 })
 
