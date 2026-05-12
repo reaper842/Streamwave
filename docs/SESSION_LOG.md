@@ -1686,3 +1686,64 @@ Also removed the now-unused `FollowedArtistItem` local interface (replaced by `A
 - `src/app/(main)/library/page.tsx` — removed local artist state + fetch; reads `followedArtists` from `useLibraryStore`
 
 **Result:** 219 server + 123 client tests pass, `npm run build` → 0 errors.
+
+---
+
+## Session 71 — 2026-05-12: Bug Fix — Shuffle Not Playing Random Songs
+
+**Problem:** The shuffle button was visually active but behaved incorrectly in three distinct ways:
+
+1. **`PlayLikedSongsButton` always started from track 0** — `handleShuffle` hardcoded `startIndex=0` instead of picking a random starting point.
+2. **`playAlbum` / `playPlaylist` ignored shuffle for the first track** — when the user pressed Play on an album/playlist with shuffle already on, the engine's `buildShuffleOrder` did produce a random order, but the _initial_ track was always the first in the list (index 0) rather than a random one.
+3. **Shuffle + repeat-all replayed the same order every cycle** — `getNextIndex()` returned `shuffleOrder[0]` at the end of a cycle, which is the track that was played _first_ that cycle, not the start of a new random permutation.
+
+**Root causes & fixes:**
+
+**Fix 1 — `PlayLikedSongsButton`:**
+
+```typescript
+const handleShuffle = () => {
+  if (trackIds.length === 0) return
+  setShuffle(true)
+  void playFromTrackIds(trackIds, Math.floor(Math.random() * trackIds.length))
+}
+```
+
+**Fix 2 — `playAlbum` / `playPlaylist`:**
+
+After fetching tracks, compute a random start when shuffle is on:
+
+```typescript
+const effectiveStart =
+  engine.getState().shuffleEnabled && startIndex === 0 && tracks.length > 1
+    ? Math.floor(Math.random() * tracks.length)
+    : startIndex
+engine.play(tracks, effectiveStart)
+```
+
+**Fix 3 — `getNextIndex()` wrap-around re-shuffle:**
+
+```typescript
+if (nextShufflePos >= this.shuffleOrder.length) {
+  if (repeatMode !== 'all') return -1
+  // Regenerate shuffle order so next cycle starts from a different song.
+  // queueIndex goes to position 0 (just played → will be last in new cycle).
+  this.shuffleOrder = buildShuffleOrder(queue.length, queueIndex)
+  return this.shuffleOrder.length > 1 ? this.shuffleOrder[1] : this.shuffleOrder[0]
+}
+```
+
+Also cleaned up a triple-assignment code smell in `play()` where `shuffleOrder` was set three times.
+
+**Files changed:**
+
+- `src/lib/audio/engine.ts` — `play()` cleanup + `getNextIndex()` re-shuffle on wrap
+- `src/stores/player.ts` — `playAlbum` + `playPlaylist` random start when shuffle on
+- `src/components/library/PlayLikedSongsButton.tsx` — `handleShuffle` random start index
+
+**Tests added (6 new):**
+
+- `engine.test.ts` — 3 new shuffle tests: no-repeat no-op at end, repeat-all wraps to new song, repeat-all cycle doesn't stop
+- `player.test.ts` — 1 new test: `playAlbum` starts from random index when shuffle enabled; updated `beforeEach` to reset shuffle state
+
+**Result:** 219 server + 129 client tests pass, `npm run build` → 0 errors.
