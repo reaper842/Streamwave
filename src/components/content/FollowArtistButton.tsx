@@ -14,10 +14,8 @@ export function FollowArtistButton({
   artistName,
   artistImageUrl,
 }: FollowArtistButtonProps) {
-  const isFollowing = useLibraryStore((s) => s.isFollowing)
+  const following = useLibraryStore((s) => s.followedArtistIds.has(artistId))
   const toggleFollowArtist = useLibraryStore((s) => s.toggleFollowArtist)
-
-  const following = isFollowing(artistId)
 
   const handleClick = () => {
     const artistData: ArtistSummary | undefined = artistName
