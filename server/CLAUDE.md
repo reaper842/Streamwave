@@ -120,6 +120,20 @@ GET    /api/v1/users/me/notifications        → fetch (or upsert-create with de
 PATCH  /api/v1/users/me/notifications        → partial update of notification flags (all optional booleans)
 GET    /health                               → liveness probe (always 200, no dep checks) — for load balancers
 GET    /api/v1/health                        → readiness probe; checks Postgres + Redis + Meilisearch; 200 ok / 503 degraded
+GET    /api/v1/admin/stats                   → { users, artists, albums, tracks, playlists } counts (admin only)
+GET    /api/v1/admin/artists                 → all artists (for dropdowns)
+GET    /api/v1/admin/albums?artistId=        → all albums, optionally filtered by artist (for dropdowns)
+GET    /api/v1/admin/tracks?page=&limit=     → paginated track list with artist + album
+POST   /api/v1/admin/tracks                  → create track
+PATCH  /api/v1/admin/tracks/:id              → update track
+DELETE /api/v1/admin/tracks/:id              → delete track
+GET    /api/v1/admin/playlists?page=&limit=  → paginated playlist list with owner + track count
+POST   /api/v1/admin/playlists               → create playlist
+PATCH  /api/v1/admin/playlists/:id           → update playlist metadata
+DELETE /api/v1/admin/playlists/:id           → delete playlist
+GET    /api/v1/admin/playlists/:id/tracks    → list tracks in playlist
+POST   /api/v1/admin/playlists/:id/tracks    → add track to playlist
+DELETE /api/v1/admin/playlists/:id/tracks/:trackId → remove track from playlist
 ```
 
 ---
@@ -190,8 +204,18 @@ GET    /api/v1/health                        → readiness probe; checks Postgre
 - `server/routes/users.ts` — GET + PATCH /api/v1/users/me; GET + PATCH /api/v1/users/me/notifications
 - `server/services/users.ts` — `getUserProfile` (profile + library counts), `updateUserProfile`
 - `server/services/notifications.ts` — `getNotificationPreferences` (upsert-on-read), `updateNotificationPreferences` (partial upsert)
+- `server/services/admin.ts` — `assertAdmin(userId)` DB guard + all admin CRUD helpers
+- `server/routes/admin.ts` — All admin endpoints under `/api/v1/admin/`; each handler calls `assertAdmin` after `requireUser`
 - `server/test/buildApp.ts` — Test Fastify factory (no rate-limit plugin)
 - `server/load-env.ts` — **First import** in `server/index.ts`; loads `.env` then `.env.local`. Must stay first or modules that read `process.env` at eval time (prisma, auth plugin) will see `undefined`.
+
+## Admin API Patterns (Session 71)
+
+- **`assertAdmin(userId)`** — call immediately after `requireUser(request)` in every admin handler. Throws 403 `FORBIDDEN` if `user.is_admin !== true`. Hits DB every request (not JWT-based) to prevent stale-JWT bypass.
+- **`safeText(min, max)`** — Zod helper for input sanitization: `z.string().transform(trim+stripHTML).pipe(z.string().min(min).max(max))`. Defined locally in `admin.ts` (same pattern as `playlists.ts`).
+- **`requireUser(request)`** — helper defined in `server/routes/` files; reads `request.user` set by the auth plugin; throws 401 if missing.
+- Admin routes are registered in `server/index.ts` and `server/test/buildApp.ts` under prefix `/api/v1/admin`.
+- Admin service functions are pure Prisma — no Redis, no Meilisearch side effects currently (add sync calls if search needs to stay current after admin writes).
 
 ---
 

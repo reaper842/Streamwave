@@ -305,3 +305,29 @@ Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlayli
 - `src/app/(main)/settings/page.tsx` — Notifications row is `<Link href="/settings/notifications">` (no longer a `opacity-50 cursor-default` placeholder). The Privacy & Security container has `suppressHydrationWarning` to tolerate Turbopack cache drift.
 - **`apiClient.get<T>` generic** — pass the inner type directly (`T = NotificationPreferences`); `res.data` is already `T`. Do NOT wrap as `{ data: T }`.
 - **Toggle pattern** — `<button role="switch" aria-checked={checked}>` is the ARIA-correct approach for custom toggle switches (not `<input type="checkbox">`). The `id` prop wires to `<label htmlFor>` for accessible click area.
+
+## Admin Dashboard (Session 71) — `src/app/admin/`
+
+Separate route group under `/admin` — NOT inside `(main)`. Has its own layout with `AdminSidebar`.
+
+### Security (two layers)
+
+1. **`src/proxy.ts`** (edge) — checks `payload.isAdmin` from the JWT. Fast, no DB round-trip. Redirects to `/` if false.
+2. **`src/app/admin/layout.tsx`** (RSC) — calls `auth()` + verifies `session.user.isAdmin`. Belt-and-suspenders for JWT staleness. Redirects to `/` if not admin.
+3. **`assertAdmin(userId)` in `server/services/admin.ts`** — each API route does a DB lookup at request time. Prevents bypassing via manipulated JWTs.
+
+### Files
+
+- `src/app/admin/layout.tsx` — RSC. Auth check + `AdminSidebar` (fixed left, 224px) + `<main className="ml-56">`.
+- `src/app/admin/page.tsx` — Dashboard. Reads Prisma directly (RSC) for 5 stat cards: users, artists, albums, tracks, playlists. No Fastify loopback needed.
+- `src/app/admin/tracks/page.tsx` — Client. Paginated table (50/page). Create/edit modal with artist→album cascade dropdown. Delete with `confirm()`.
+- `src/app/admin/playlists/page.tsx` — Client. Paginated list. Create/edit modal. Sticky right panel for track management (add/remove tracks).
+- `src/components/admin/AdminSidebar.tsx` — Client. Uses `usePathname()` for active link highlighting. Links: Dashboard, Tracks, Playlists. Footer: "Back to App" → `/`.
+
+### Patterns
+
+- **Dashboard stats via RSC + Prisma** (not Fastify API) — avoids auth-header complexity of RSC→Fastify loopback. Same pattern as `src/lib/data/content.ts`.
+- **Artist→Album cascade** — `filteredAlbums` state derived from `form.artistId` via `useEffect`; album select is `disabled` until an artist is chosen.
+- **Playlist track panel** — right column of the playlists page; add-track dropdown filters out already-added tracks using `new Set(playlistTracks.map(pt => pt.track.id))`.
+- **`showToast`** — import from `@/components/ui/Toast`, destructure `const { showToast } = useToast()`, call as `showToast(msg, 'error' | 'success')`.
+- Admin pages do NOT use `(main)` layout — no Sidebar, TopBar, PlaybackBar. The admin shell is self-contained.
