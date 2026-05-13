@@ -28,6 +28,7 @@ import libraryRoutes from '../routes/library'
 import playlistsRoutes from '../routes/playlists'
 import searchRoutes from '../routes/search'
 import usersRoutes from '../routes/users'
+import adminRoutes from '../routes/admin'
 
 function addLenientJsonParser(fastify: FastifyInstance) {
   fastify.removeContentTypeParser('application/json')
@@ -70,6 +71,7 @@ export async function buildApp() {
   fastify.register(libraryRoutes, { prefix: '/api/v1/library' })
   fastify.register(playlistsRoutes, { prefix: '/api/v1/playlists' })
   fastify.register(usersRoutes, { prefix: '/api/v1/users' })
+  fastify.register(adminRoutes, { prefix: '/api/v1/admin' })
 
   // Mirror the global error handler from server/index.ts so response shapes match
   fastify.setErrorHandler((err, _request, reply) => {
