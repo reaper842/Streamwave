@@ -68,6 +68,13 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
+    // Admin routes require the isAdmin flag in the JWT
+    if (pathname.startsWith('/admin')) {
+      if (!payload.isAdmin) {
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+    }
+
     return NextResponse.next()
   } catch {
     const loginUrl = new URL('/login', request.url)
