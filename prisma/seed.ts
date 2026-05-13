@@ -125,6 +125,7 @@ async function main() {
       password_hash: passwordHash,
       display_name: 'Demo User',
       avatar_url: null,
+      is_admin: true,
     },
   })
   console.log(`✅ Created demo user: ${demoUser.email}`)

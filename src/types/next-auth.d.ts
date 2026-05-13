@@ -7,12 +7,14 @@ declare module 'next-auth' {
       email: string
       displayName: string
       avatarUrl: string | null
+      isAdmin: boolean
     } & DefaultSession['user']
   }
 
   interface User {
     displayName?: string
     avatarUrl?: string | null
+    isAdmin?: boolean
   }
 }
 
@@ -21,5 +23,6 @@ declare module '@auth/core/jwt' {
     userId?: string
     displayName?: string
     avatarUrl?: string | null
+    isAdmin?: boolean
   }
 }

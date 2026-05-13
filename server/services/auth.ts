@@ -59,6 +59,7 @@ export interface UserProfile {
   email: string
   displayName: string
   avatarUrl: string | null
+  isAdmin: boolean
   createdAt: Date
 }
 
@@ -129,7 +130,14 @@ export async function registerUser(
 
   const user = await prisma.user.create({
     data: { email, password_hash: passwordHash, display_name: displayName },
-    select: { id: true, email: true, display_name: true, avatar_url: true, created_at: true },
+    select: {
+      id: true,
+      email: true,
+      display_name: true,
+      avatar_url: true,
+      is_admin: true,
+      created_at: true,
+    },
   })
 
   const tokens = await generateTokenPair(user.id, user.email, redis)
@@ -140,6 +148,7 @@ export async function registerUser(
       email: user.email,
       displayName: user.display_name,
       avatarUrl: user.avatar_url,
+      isAdmin: user.is_admin,
       createdAt: user.created_at,
     },
     tokens,
@@ -158,6 +167,7 @@ export async function loginUser(
       email: true,
       display_name: true,
       avatar_url: true,
+      is_admin: true,
       created_at: true,
       password_hash: true,
     },
@@ -182,6 +192,7 @@ export async function loginUser(
       email: user.email,
       displayName: user.display_name,
       avatarUrl: user.avatar_url,
+      isAdmin: user.is_admin,
       createdAt: user.created_at,
     },
     tokens,

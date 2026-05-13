@@ -14,7 +14,7 @@ async function findOrCreateOAuthUser(email: string, name: string | null, image: 
 
   const existing = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, display_name: true, avatar_url: true },
+    select: { id: true, display_name: true, avatar_url: true, is_admin: true },
   })
 
   if (existing) return existing
@@ -27,7 +27,7 @@ async function findOrCreateOAuthUser(email: string, name: string | null, image: 
       // OAuth users authenticate via their provider — no local password
       password_hash: '',
     },
-    select: { id: true, display_name: true, avatar_url: true },
+    select: { id: true, display_name: true, avatar_url: true, is_admin: true },
   })
 }
 
@@ -72,6 +72,7 @@ export const authConfig: NextAuthConfig = {
                 email: string
                 displayName: string
                 avatarUrl: string | null
+                isAdmin: boolean
               }
             }
           }
@@ -82,6 +83,7 @@ export const authConfig: NextAuthConfig = {
             name: data.user.displayName,
             displayName: data.user.displayName,
             avatarUrl: data.user.avatarUrl,
+            isAdmin: data.user.isAdmin,
           }
         } catch {
           return null
@@ -118,6 +120,7 @@ export const authConfig: NextAuthConfig = {
           token.userId = user.id ?? ''
           token.displayName = user.displayName ?? user.name ?? ''
           token.avatarUrl = user.avatarUrl ?? null
+          token.isAdmin = user.isAdmin ?? false
         } else if (account.type === 'oauth') {
           // OAuth: look up or create the user in the database
           const email = user.email
@@ -127,6 +130,7 @@ export const authConfig: NextAuthConfig = {
           token.userId = dbUser.id
           token.displayName = dbUser.display_name
           token.avatarUrl = dbUser.avatar_url
+          token.isAdmin = dbUser.is_admin
         }
       }
       return token
@@ -144,6 +148,7 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.userId || token.sub || ''
         session.user.displayName = (token.displayName as string) ?? ''
         session.user.avatarUrl = (token.avatarUrl as string | null) ?? null
+        session.user.isAdmin = (token.isAdmin as boolean) ?? false
       }
       return session
     },
