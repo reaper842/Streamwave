@@ -287,6 +287,7 @@ Applied to: `AddToPlaylistModal` (TrackRow), `EditPlaylistModal` + `DeletePlayli
 - **Zustand selector rule**: use separate `usePlayerStore((s) => s.field)` calls per field — never an inline object selector (causes infinite render loop).
 - `PlaybackBar.tsx` manages `isQueueOpen` state; right section wraps `<VolumeSlider /> + <QueueButton />` in a flex div.
 - **`addTrackToQueue(trackId)` vs `addToQueue(track)`** — always use the async `addTrackToQueue(trackId)` from UI components that only have track metadata (e.g. TrackRow). It calls `fetchQueueTrack(trackId)` to obtain the signed stream URL before enqueueing. Never call `addToQueue({ ..., streamUrl: '' })` — the engine passes `streamUrl` directly to `buildHowl`; an empty string silently fails after 3 retries with no user-visible error (Session 66 fix).
+- **Clear Queue button** (Session 74): `Trash2` icon + "Clear" text in the QueuePanel header, visible only when `upcomingTracks.length > 0`. Calls `usePlayerStore.clearQueue()` → `AudioEngine.clearQueue()` which stops audio, unloads both Howls, and resets all queue/playback state. No confirmation dialog — low-stakes action.
 
 ## Test Selectors (data-testid)
 
