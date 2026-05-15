@@ -80,11 +80,9 @@ export default function AdminTracksPage() {
     async (p: number) => {
       setLoading(true)
       try {
-        const res = await apiClient.get<{ items: Track[]; total: number }>(
-          `/admin/tracks?page=${p}&limit=${limit}`,
-        )
-        setTracks(res.data.items)
-        setTotal(res.data.total)
+        const res = await apiClient.get<Track[]>(`/admin/tracks?page=${p}&limit=${limit}`)
+        setTracks(res.data)
+        setTotal(res.meta?.total ?? 0)
       } catch {
         showToast('Failed to load tracks', 'error')
       } finally {

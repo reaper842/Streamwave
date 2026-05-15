@@ -86,11 +86,9 @@ export default function AdminPlaylistsPage() {
     async (p: number) => {
       setLoading(true)
       try {
-        const res = await apiClient.get<{ items: PlaylistItem[]; total: number }>(
-          `/admin/playlists?page=${p}&limit=${limit}`,
-        )
-        setPlaylists(res.data.items)
-        setTotal(res.data.total)
+        const res = await apiClient.get<PlaylistItem[]>(`/admin/playlists?page=${p}&limit=${limit}`)
+        setPlaylists(res.data)
+        setTotal(res.meta?.total ?? 0)
       } catch {
         showToast('Failed to load playlists', 'error')
       } finally {
@@ -109,11 +107,7 @@ export default function AdminPlaylistsPage() {
     if (!managingPlaylist) return
     apiClient
       .get<TrackOption[]>('/admin/tracks?limit=500')
-      .then((r) => {
-        // r.data is actually { items, total } here
-        const raw = r.data as unknown as { items: TrackOption[] }
-        setAllTracks(raw.items ?? [])
-      })
+      .then((r) => setAllTracks(r.data))
       .catch(() => {})
   }, [managingPlaylist])
 
