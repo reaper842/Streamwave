@@ -1747,3 +1747,29 @@ Also cleaned up a triple-assignment code smell in `play()` where `shuffleOrder` 
 - `player.test.ts` — 1 new test: `playAlbum` starts from random index when shuffle enabled; updated `beforeEach` to reset shuffle state
 
 **Result:** 219 server + 129 client tests pass, `npm run build` → 0 errors.
+
+---
+
+## Session 74 — feat: Clear Queue button in Queue panel
+
+**Goal:** Add a "Clear queue" button to the Queue panel so users can remove all upcoming tracks and start fresh.
+
+**What was done:**
+
+- Added "Clear queue" button to `QueuePanel` header (`src/components/playback/QueuePanel.tsx`)
+- Button appears only when `upcomingTracks.length > 0` (hidden when queue is empty or only the current track remains)
+- Calls `clearQueue()` from `usePlayerStore` → `AudioEngine.clearQueue()` which stops audio, unloads both Howls, resets all queue/playback state
+- Icon: `Trash2` (lucide-react), styled as a small text+icon button (`text-xs`, secondary color, hover to primary)
+- Positioned in the header right section alongside the existing close (X) button
+
+**Key decisions:**
+
+- Show "Clear" only when there are _upcoming_ tracks (`upcomingTracks.length > 0`), not just any queue entry. The currently-playing track isn't "clearable" on its own.
+- `clearQueue()` in the engine fully stops audio (not just clears the list) — consistent with the existing `clearQueue` contract established in M3.
+- No confirmation dialog — the action is low-stakes and reversible by starting new playback.
+
+**Files changed:**
+
+- `src/components/playback/QueuePanel.tsx` — added `Trash2` import, `clearQueue` store selector, "Clear" button in header
+
+**Result:** 219 server + 129 client tests pass, `npm run build` → 0 errors.
