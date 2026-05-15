@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
-import { X, GripVertical, Play } from 'lucide-react'
+import { X, GripVertical, Play, Trash2 } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -34,6 +34,7 @@ export function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
   const removeFromQueue = usePlayerStore((s) => s.removeFromQueue)
   const reorderQueue = usePlayerStore((s) => s.reorderQueue)
   const jumpToIndex = usePlayerStore((s) => s.jumpToIndex)
+  const clearQueue = usePlayerStore((s) => s.clearQueue)
 
   const currentTrack = queue[queueIndex] ?? null
   const upcomingTracks = queue.slice(queueIndex + 1)
@@ -68,13 +69,26 @@ export function QueuePanel({ isOpen, onClose }: QueuePanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
         <h2 className="text-base font-bold text-text-primary">Queue</h2>
-        <button
-          onClick={onClose}
-          className="rounded p-1 text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
-          aria-label="Close queue"
-        >
-          <X size={16} aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-2">
+          {upcomingTracks.length > 0 && (
+            <button
+              onClick={clearQueue}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+              aria-label="Clear queue"
+              title="Clear queue"
+            >
+              <Trash2 size={13} aria-hidden="true" />
+              Clear
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+            aria-label="Close queue"
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       {/* Scrollable content */}
