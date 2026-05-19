@@ -82,6 +82,9 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Required for Docker deployment: generates .next/standalone/ with a self-contained server.js
+  output: 'standalone',
+
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'picsum.photos' }],
   },

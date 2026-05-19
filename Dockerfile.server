@@ -1,0 +1,17 @@
+# Fastify backend — single stage (tsx runs TypeScript directly in production)
+FROM node:20-alpine
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser  --system --uid 1001 fastify
+
+COPY package*.json ./
+RUN npm ci --legacy-peer-deps
+
+COPY . .
+RUN npx prisma generate
+
+USER fastify
+EXPOSE 3001
+
+CMD ["npx", "tsx", "server/index.ts"]
