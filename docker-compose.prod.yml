@@ -5,12 +5,15 @@
 #   mkdir -p /data/streamwave/audio
 #   cp /your/mp3s/*.mp3 /data/streamwave/audio/
 #
+# NOTE: cloudflared is NOT included here — it is already running as a system
+# service on the host. The Cloudflare Tunnel routes traffic directly to the
+# host ports (3000 and 3001) which are exposed by the containers below.
+#
 # Required env vars (set in Portainer Stack "Environment variables" tab or .env.production):
 #   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 #   NEXTAUTH_SECRET, NEXTAUTH_URL
 #   NEXT_PUBLIC_API_URL
 #   MEILISEARCH_API_KEY
-#   CLOUDFLARE_TUNNEL_TOKEN
 
 services:
   # ── Next.js frontend ────────────────────────────────────────────────────────
@@ -25,8 +28,8 @@ services:
     volumes:
       # Audio files served as static assets from /audio/* routes
       - /data/streamwave/audio:/app/public/audio:ro
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,8 +47,8 @@ services:
     container_name: streamwave_fastify
     restart: unless-stopped
     env_file: .env.production
-    expose:
-      - "3001"
+    ports:
+      - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,23 +112,6 @@ services:
     networks:
       - streamwave
 
-  # ── Cloudflare Tunnel ─────────────────────────────────────────────────────────
-  # Routes:
-  #   streamwave.yourdomain.com     → http://nextjs:3000
-  #   api.streamwave.yourdomain.com → http://fastify:3001
-  # Configure hostnames in Cloudflare Zero Trust dashboard after creating the tunnel.
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: streamwave_cloudflared
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    depends_on:
-      - nextjs
-      - fastify
-    networks:
-      - streamwave
 
 volumes:
   pgdata:
