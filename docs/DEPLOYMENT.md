@@ -1,7 +1,7 @@
-# StreamWave — Self-Hosted Deployment Guide
+﻿# StreamWave â€” Self-Hosted Deployment Guide
 
-> **Stack**: Ubuntu Linux server · Docker / Portainer · Cloudflare Tunnel  
-> **Architecture**: Next.js (port 3000) + Fastify (port 3001) + PostgreSQL + Redis + Meilisearch + cloudflared — all in one Docker Compose stack.
+> **Stack**: Ubuntu Linux server Â· Docker / Portainer Â· Cloudflare Tunnel  
+> **Architecture**: Next.js (port 3000) + Fastify (port 3001) + PostgreSQL + Redis + Meilisearch + cloudflared â€” all in one Docker Compose stack.
 
 ---
 
@@ -80,7 +80,7 @@ sudo chown -R $USER:$USER /data/streamwave
 
 ```bash
 git clone https://github.com/YOUR_ORG/streamwave.git /opt/streamwave
-cd /opt/streamwave/streamwave
+cd /opt/streamwave
 ```
 
 ---
@@ -91,9 +91,9 @@ A Cloudflare Tunnel lets your server receive HTTPS traffic without opening any p
 
 ### 3.1 Create the tunnel
 
-1. Go to **Cloudflare Dashboard** → **Zero Trust** → **Networks** → **Tunnels**
-2. Click **Create a tunnel** → Choose **Cloudflared** → Name it `streamwave`
-3. On the next screen, copy the **tunnel token** — it looks like a long base64 string starting with `eyJ...`
+1. Go to **Cloudflare Dashboard** â†’ **Zero Trust** â†’ **Networks** â†’ **Tunnels**
+2. Click **Create a tunnel** â†’ Choose **Cloudflared** â†’ Name it `streamwave`
+3. On the next screen, copy the **tunnel token** â€” it looks like a long base64 string starting with `eyJ...`
 4. Save this token; you will put it in `.env.production` as `CLOUDFLARE_TUNNEL_TOKEN`
 
 ### 3.2 Configure public hostnames
@@ -105,7 +105,7 @@ In the tunnel configuration, add two **Public Hostnames**:
 | `streamwave`     | `yourdomain.com` | HTTP | `http://nextjs:3000`  |
 | `api.streamwave` | `yourdomain.com` | HTTP | `http://fastify:3001` |
 
-> The service names (`nextjs`, `fastify`) are the Docker container hostnames — they resolve inside the Docker network automatically.
+> The service names (`nextjs`, `fastify`) are the Docker container hostnames â€” they resolve inside the Docker network automatically.
 
 ### 3.3 Note your public URLs
 
@@ -119,7 +119,7 @@ You will use these in the next step.
 ## 4. Configure Environment Variables
 
 ```bash
-cd /opt/streamwave/streamwave
+cd /opt/streamwave
 cp .env.production.example .env.production
 nano .env.production   # or your preferred editor
 ```
@@ -159,25 +159,25 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
 
 ### Option A: Portainer Stacks (recommended)
 
-1. In Portainer, go to **Stacks** → **Add stack**
+1. In Portainer, go to **Stacks** â†’ **Add stack**
 2. Name: `streamwave`
-3. Select **Repository** → paste your Git repo URL, branch `main`, compose path `streamwave/docker-compose.prod.yml`
-   — OR —
-   Select **Upload** → upload the `docker-compose.prod.yml` file
+3. Select **Repository** â†’ paste your Git repo URL, branch `main`, compose path `streamwave/docker-compose.prod.yml`
+   â€” OR â€”
+   Select **Upload** â†’ upload the `docker-compose.prod.yml` file
 4. In the **Environment variables** tab, add all variables from `.env.production`
 5. Click **Deploy the stack**
 
 ### Option B: CLI on the server
 
 ```bash
-cd /opt/streamwave/streamwave
+cd /opt/streamwave
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
 ### Option C: deploy.sh
 
 ```bash
-cd /opt/streamwave/streamwave
+cd /opt/streamwave
 chmod +x deploy.sh
 ./deploy.sh
 ```
@@ -277,13 +277,13 @@ Without OAuth, users can only sign in with email/password. The OAuth buttons wil
 ### 8.1 Google OAuth
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. APIs & Services → Credentials → Create OAuth 2.0 Client ID
+2. APIs & Services â†’ Credentials â†’ Create OAuth 2.0 Client ID
 3. Authorized redirect URI: `https://streamwave.yourdomain.com/api/auth/callback/google`
 4. Copy Client ID and Secret into `.env.production`
 
 ### 8.2 GitHub OAuth
 
-1. Go to GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
+1. Go to GitHub â†’ Settings â†’ Developer settings â†’ OAuth Apps â†’ New OAuth App
 2. Authorization callback URL: `https://streamwave.yourdomain.com/api/auth/callback/github`
 3. Copy Client ID and Secret into `.env.production`
 
@@ -303,7 +303,7 @@ docker compose -f docker-compose.prod.yml restart nextjs fastify
 # 1. Check all containers are running
 docker compose -f docker-compose.prod.yml ps
 
-# 2. API health check (readiness probe — checks Postgres + Redis + Meilisearch)
+# 2. API health check (readiness probe â€” checks Postgres + Redis + Meilisearch)
 curl http://localhost:3001/api/v1/health
 
 # 3. Next.js is up
@@ -326,11 +326,11 @@ Expected health response:
 
 ### End-to-end smoke test
 
-1. Open `https://streamwave.yourdomain.com` → login page renders (dark theme)
+1. Open `https://streamwave.yourdomain.com` â†’ login page renders (dark theme)
 2. Log in as `demo@streamwave.app` / `Demo1234`
-3. Click a track → audio plays, playback bar is active
-4. Search for an artist → results appear
-5. Create a playlist → add tracks
+3. Click a track â†’ audio plays, playback bar is active
+4. Search for an artist â†’ results appear
+5. Create a playlist â†’ add tracks
 
 ---
 
@@ -339,7 +339,7 @@ Expected health response:
 When you push code changes, redeploy like this:
 
 ```bash
-cd /opt/streamwave/streamwave
+cd /opt/streamwave
 
 # Full deploy: pull code + rebuild images + migrate + restart
 ./deploy.sh
@@ -353,16 +353,16 @@ cd /opt/streamwave/streamwave
 
 ### What `./deploy.sh` does
 
-1. `git pull` — pulls latest code
-2. `docker compose build --no-cache` — rebuilds both Docker images
+1. `git pull` â€” pulls latest code
+2. `docker compose build --no-cache` â€” rebuilds both Docker images
 3. Starts infrastructure services (postgres, redis, meilisearch)
-4. Runs `prisma migrate deploy` — applies any new migrations
-5. `docker compose up -d` — starts/replaces all containers
+4. Runs `prisma migrate deploy` â€” applies any new migrations
+5. `docker compose up -d` â€” starts/replaces all containers
 6. Shows container status
 
 ### Zero-downtime note
 
-The current setup has a brief gap (~5-10 seconds) when containers restart. For zero-downtime, add a load balancer or use Docker's rolling update strategy — but for a personal/thesis project this is fine.
+The current setup has a brief gap (~5-10 seconds) when containers restart. For zero-downtime, add a load balancer or use Docker's rolling update strategy â€” but for a personal/thesis project this is fine.
 
 ---
 
@@ -392,8 +392,8 @@ docker logs streamwave_cloudflared
 
 Common causes:
 
-- `CLOUDFLARE_TUNNEL_TOKEN` is wrong or expired — regenerate in Cloudflare Dashboard
-- Container names changed — tunnel routes use Docker service hostnames (`nextjs`, `fastify`), not container names
+- `CLOUDFLARE_TUNNEL_TOKEN` is wrong or expired â€” regenerate in Cloudflare Dashboard
+- Container names changed â€” tunnel routes use Docker service hostnames (`nextjs`, `fastify`), not container names
 
 ### Audio not playing
 
