@@ -103,8 +103,18 @@ const nextConfig: NextConfig = {
       ...(process.env['NODE_ENV'] === 'production'
         ? [
             {
-              // 1-day cache for public/ assets (images, audio)
-              source: '/(.+)',
+              // API routes must never be cached — dynamic auth/session/data responses
+              source: '/api/(.*)',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'no-store',
+                },
+              ],
+            },
+            {
+              // 1-day cache for audio files only (public/audio/ volume mount)
+              source: '/audio/(.*)',
               headers: [
                 {
                   key: 'Cache-Control',
