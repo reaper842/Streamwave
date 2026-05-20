@@ -34,7 +34,8 @@ async function findOrCreateOAuthUser(email: string, name: string | null, image: 
 // ── NextAuth Config ───────────────────────────────────────────────────────────
 
 export const authConfig: NextAuthConfig = {
-  // JWT strategy is the default in v5 (no database adapter required)
+  // Required when running behind a reverse proxy (Cloudflare Tunnel, nginx, etc.)
+  trustHost: true,
   session: { strategy: 'jwt' },
 
   // Custom pages — map to the (auth) route group
