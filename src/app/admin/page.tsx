@@ -1,6 +1,8 @@
 import { Users, Music, Disc3, ListMusic, MicVocal } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 async function fetchStats() {
   const [users, artists, albums, tracks, playlists] = await Promise.all([
     prisma.user.count(),

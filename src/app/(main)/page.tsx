@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { fetchFeatured, getStaticGenres } from '@/lib/data/content'
+
+export const dynamic = 'force-dynamic'
 import { AlbumCard } from '@/components/content/AlbumCard'
 import { PlaylistCard } from '@/components/content/PlaylistCard'
 import { CardGrid } from '@/components/content/CardGrid'
