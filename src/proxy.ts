@@ -29,16 +29,6 @@ function isAsset(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Force HTTPS in production — redirect http:// requests to https://
-  if (
-    process.env['NODE_ENV'] === 'production' &&
-    request.headers.get('x-forwarded-proto') === 'http'
-  ) {
-    const httpsUrl = request.nextUrl.clone()
-    httpsUrl.protocol = 'https:'
-    return NextResponse.redirect(httpsUrl, { status: 301 })
-  }
-
   // Pass through static assets and public routes without session check
   if (isAsset(pathname) || isPublic(pathname)) {
     return NextResponse.next()
