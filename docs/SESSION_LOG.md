@@ -1773,3 +1773,123 @@ Also cleaned up a triple-assignment code smell in `play()` where `shuffleOrder` 
 - `src/components/playback/QueuePanel.tsx` — added `Trash2` import, `clearQueue` store selector, "Clear" button in header
 
 **Result:** 219 server + 129 client tests pass, `npm run build` → 0 errors.
+
+---
+
+## Session 75 — 2026-05-12: M9 — Self-Hosted Deployment Infrastructure
+
+**Goal:** Create all Docker/deployment artifacts for self-hosted production on Ubuntu + Portainer + Cloudflare Tunnel.
+
+**What was done:**
+
+- Created `Dockerfile` (Next.js multi-stage, `output: 'standalone'`, copies `public/` and `.next/standalone`)
+- Created `Dockerfile.server` (Fastify backend, copies `server/`, `prisma/`, `src/generated/`, runs `tsx server/index.ts`)
+- Created `docker-compose.prod.yml` — full production stack: `nextjs` (port 3000), `fastify` (port 3001), `postgres`, `redis`, `meilisearch`; no cloudflared service (runs as host daemon)
+- Created `.env.production.example` with all variables, inline documentation, and generate commands for secrets
+- Added `output: 'standalone'` to `next.config.ts`
+- Created `deploy.sh` — `run_deploy` (git pull + build + migrate + restart), `run_seed`, `run_migrate`, `run_restart`, `run_logs`, `run_status` subcommands
+- Wrote `docs/DEPLOYMENT.md` — full guide: prerequisites, Docker install, Portainer setup, Cloudflare Tunnel config, env vars, Portainer deploy, first-run steps, audio upload, OAuth setup, troubleshooting
+
+**Result:** `npm run build` → 0 errors. 219/219 server + 129/129 client tests pass.
+
+---
+
+## Session 76 — 2026-05-13: M9 — Server Setup & Cloudflare Tunnel Configuration
+
+**Goal:** Clone repo to Ubuntu server, configure Cloudflare Tunnel, fix docker-compose issues found during real deployment.
+
+**What was done:**
+
+- Repo cloned to `/opt/streamwave` on Ubuntu server
+- `/data/streamwave/audio/` directory created
+- Cloudflare Tunnel `reaperexpres` configured with two public hostnames:
+  - `streamwave.reapermusic.com` → `http://nextjs:3000`
+  - `api.streamwave.reapermusic.com` → `http://fastify:3001`
+- Discovered cloudflared was already running as a host system service, NOT a Docker service — removed cloudflared from `docker-compose.prod.yml`
+- Fixed `docker-compose.prod.yml`: changed `expose` → `ports` so host cloudflared daemon can reach containers on `localhost:3000` and `localhost:3001`
+- Fixed `docs/DEPLOYMENT.md`: corrected clone path from `/opt/streamwave/streamwave` to `/opt/streamwave`
+
+**Files changed:**
+
+- `docker-compose.prod.yml` — removed cloudflared service, `expose` → `ports`
+- `docs/DEPLOYMENT.md` — corrected clone path, cloudflared notes
+
+**Result:** `npm run build` → 0 errors.
+
+---
+
+## Session 77 — 2026-05-14: M9 — Deployment Fixes (force-dynamic, env-file, proxy redirect)
+
+**Goal:** Fix multiple production deployment failures discovered after first `./deploy.sh`.
+
+**What was done:**
+
+- Added `export const dynamic = 'force-dynamic'` to `src/app/(main)/page.tsx` and `src/app/admin/page.tsx` — these RSC pages call Prisma at render time; Docker build has no database, causing `P1001: Can't reach database server` at build time
+- Fixed `deploy.sh` `COMPOSE` variable to always include `--env-file .env.production`
+- Removed HTTP→HTTPS redirect from `src/proxy.ts` — Cloudflare Tunnel handles TLS at its edge; a 301 redirect caused a 502 loop
+
+**Files changed:**
+
+- `src/app/(main)/page.tsx` — `export const dynamic = 'force-dynamic'`
+- `src/app/admin/page.tsx` — `export const dynamic = 'force-dynamic'`
+- `deploy.sh` — `--env-file .env.production` added to all `docker compose` invocations
+- `src/proxy.ts` — removed HTTP→HTTPS redirect
+
+**Result:** `npm run build` → 0 errors.
+
+---
+
+## Session 78 — 2026-05-15: M9 — Deployment Fixes (migrations, trustHost, cache headers)
+
+**Goal:** Fix three production issues: missing migrations in Docker image, NextAuth UntrustedHost error, Cloudflare caching stale 500 responses.
+
+**What was done:**
+
+- Removed `prisma/migrations/` from `.gitignore` — committed all 3 real migrations so `prisma migrate deploy` works inside Docker
+- Added `trustHost: true` to `authConfig` in `src/lib/auth/config.ts` and `AUTH_TRUST_HOST=true` to `.env.production` — without it, NextAuth v5 throws `UntrustedHost` for every request from an external hostname behind a reverse proxy
+- Added explicit `Cache-Control: no-store` rule for `/api/(.*)` BEFORE the broad `/(.+)` cache rule in `next.config.ts` — Cloudflare was caching the `UntrustedHost` 500 response from `/api/auth/session` for 24 hours
+
+**Files changed:**
+
+- `.gitignore` — removed `prisma/migrations/` entry
+- `prisma/migrations/` — all 3 migration directories committed
+- `src/lib/auth/config.ts` — `trustHost: true`
+- `next.config.ts` — `/api/(.*)` → `Cache-Control: no-store` before broad cache rule
+
+**Result:** `npm run build` → 0 errors. `./deploy.sh seed` completed. Meilisearch indexed.
+
+---
+
+## Session 79 — 2026-05-29: M9 — Production Bug Fixes (SSL, CORS, Cookie Domain)
+
+**Goal:** Complete production verification after Session 78. Diagnose and fix all browser → Fastify API failures.
+
+**What was done:**
+
+- **Fixed `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`** — Cloudflare Universal SSL (free plan) only covers `*.reapermusic.com`. The API hostname `api.streamwave.reapermusic.com` is a second-level subdomain and not covered. Changed Cloudflare Tunnel public hostname to `streamwave-api.reapermusic.com`; updated `NEXT_PUBLIC_API_URL` in `.env.production`; rebuilt nextjs Docker image.
+- **Fixed CORS trailing slash** — `server/index.ts`: `(process.env['NEXTAUTH_URL'] ?? 'http://localhost:3000').replace(/\/$/, '')` — `NEXTAUTH_URL` with trailing slash caused `Access-Control-Allow-Origin` header mismatch.
+- **Fixed cross-subdomain cookie** — `src/lib/auth/config.ts`: added `COOKIE_DOMAIN` env var support. When set to `.reapermusic.com`, the `authjs.session-token` cookie gets `Domain=.reapermusic.com` so it is sent to both `streamwave.reapermusic.com` and `streamwave-api.reapermusic.com`.
+- Updated `.env.production.example` — documented `COOKIE_DOMAIN`, no-trailing-slash on `NEXTAUTH_URL`, first-level subdomain note.
+
+**What was NOT completed (carry to next session):**
+
+- User must: add `COOKIE_DOMAIN=.reapermusic.com` to `.env.production`, run `./deploy.sh`, purge Cloudflare cache, log out and back in.
+- Upload real MP3 files to `/data/streamwave/audio/`.
+- End-to-end verification: search, like, follow, playback.
+
+**Key technical notes for future sessions:**
+
+- **Cloudflare free SSL = first-level subdomains only** — `*.reapermusic.com` is covered; `api.streamwave.reapermusic.com` is NOT. Always use `streamwave-api.reapermusic.com` style.
+- **`NEXTAUTH_URL` must have NO trailing slash** — Fastify passes it directly to `@fastify/cors`. A trailing slash fails strict `Origin` header comparison.
+- **`COOKIE_DOMAIN=.reapermusic.com` (leading dot) required for cross-subdomain auth** — session cookie must be scoped to parent domain. Set in `.env.production`. No effect in dev (env var absent).
+- **After fixing cookie domain: user must log out and back in** — the old cookie without `Domain` attribute won't be sent cross-subdomain.
+- **Purge Cloudflare cache after every config/header change** — Dashboard → Caching → Purge Everything.
+
+**Files changed:**
+
+- `server/index.ts` — strip trailing slash from CORS origin
+- `src/lib/auth/config.ts` — `COOKIE_DOMAIN` support
+- `.env.production.example` — new `COOKIE_DOMAIN` var, conventions
+- `docs/DEPLOYMENT.md` — cloudflared troubleshooting updates
+
+**Result:** `npm run build` → 0 errors. 219/219 server + 129/129 client tests pass. Commits pushed.
