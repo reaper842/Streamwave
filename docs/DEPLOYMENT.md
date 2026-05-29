@@ -387,13 +387,17 @@ DATABASE_URL=postgresql://streamwave:pass@postgres:5432/streamwave
 ### Cloudflare Tunnel not connecting
 
 ```bash
-docker logs streamwave_cloudflared
+docker logs cloudflared-tunnel
 ```
 
 Common causes:
 
 - `CLOUDFLARE_TUNNEL_TOKEN` is wrong or expired â€” regenerate in Cloudflare Dashboard
-- Container names changed â€” tunnel routes use Docker service hostnames (`nextjs`, `fastify`), not container names
+- `cloudflared-tunnel` not on the app Docker network â€” connect it:
+  ```bash
+  docker network connect streamwave_streamwave cloudflared-tunnel
+  ```
+- Cloudflare Dashboard public hostname URLs must use Docker service names (`http://nextjs:3000`, `http://fastify:3001`), not `localhost`
 
 ### Audio not playing
 

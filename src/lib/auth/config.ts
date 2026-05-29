@@ -38,6 +38,26 @@ export const authConfig: NextAuthConfig = {
   trustHost: true,
   session: { strategy: 'jwt' },
 
+  // When COOKIE_DOMAIN is set (e.g. ".reapermusic.com"), scope the session cookie
+  // to the parent domain so it is sent to both the Next.js origin AND the Fastify
+  // API origin (e.g. streamwave-api.reapermusic.com).
+  ...(process.env['COOKIE_DOMAIN']
+    ? {
+        cookies: {
+          sessionToken: {
+            name: 'authjs.session-token',
+            options: {
+              httpOnly: true,
+              sameSite: 'lax' as const,
+              path: '/',
+              secure: process.env['NODE_ENV'] === 'production',
+              domain: process.env['COOKIE_DOMAIN'],
+            },
+          },
+        },
+      }
+    : {}),
+
   // Custom pages — map to the (auth) route group
   pages: {
     signIn: '/login',

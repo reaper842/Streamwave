@@ -58,7 +58,7 @@ async function bootstrap() {
   // ── Plugins ────────────────────────────────────────────────────────────────
 
   await fastify.register(cors, {
-    origin: process.env['NEXTAUTH_URL'] ?? 'http://localhost:3000',
+    origin: (process.env['NEXTAUTH_URL'] ?? 'http://localhost:3000').replace(/\/$/, ''),
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
