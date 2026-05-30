@@ -128,8 +128,11 @@ case "$CMD" in
     $COMPOSE ps
     echo ""
     ok "=== Deploy complete ==="
-    echo "  App:    \$NEXTAUTH_URL (from .env.production)"
-    echo "  API:    \$NEXT_PUBLIC_API_URL (from .env.production)"
-    echo "  Health: curl http://localhost:3001/api/v1/health"
+    _app_url=$(grep -E '^NEXTAUTH_URL=' "$ENV_FILE" | cut -d= -f2-)
+    _api_url=$(grep -E '^NEXT_PUBLIC_API_URL=' "$ENV_FILE" | cut -d= -f2-)
+    echo "  App:    ${_app_url:-\$NEXTAUTH_URL}"
+    echo "  API:    ${_api_url:-\$NEXT_PUBLIC_API_URL}"
+    echo "  Health: curl -s ${_api_url:-http://localhost:3001}/api/v1/health"
+    unset _app_url _api_url
     ;;
 esac
