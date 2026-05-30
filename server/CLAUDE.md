@@ -172,7 +172,7 @@ DELETE /api/v1/admin/playlists/:id/tracks/:trackId → remove track from playlis
 ### Current Test Coverage
 
 - 219/219 server tests passing: 20 unit (auth helpers) + 11 register + 9 login + 8 refresh + 6 logout + 11 password-reset + 15 library-liked-songs + 17 library-saved-albums + 16 library-followed-artists + 28 playlists-crud + 14 search + 28 content (tracks/albums/artists/browse) + 9 notifications + 23 users
-- 118/118 client tests passing: 22 AudioEngine unit + 17 usePlayerStore unit + 29 useLibraryStore unit + 16 useSearchStore unit
+- 129/129 client tests passing: 25 AudioEngine unit + 31 AudioEngine playback unit + 26 usePlayerStore unit + 31 useLibraryStore unit + 16 useSearchStore unit
 - Run server tests: `npm run test` | Run client tests: `npm run test:client`
 - Search tests require Meilisearch running (`docker compose up -d`) — use `buildSearchApp()` factory
 - Content tests (`content.test.ts`) use `buildApp()` factory (includes tracks/albums/artists/browse routes since Session 19)

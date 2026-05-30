@@ -1893,3 +1893,42 @@ Also cleaned up a triple-assignment code smell in `play()` where `shuffleOrder` 
 - `docs/DEPLOYMENT.md` — cloudflared troubleshooting updates
 
 **Result:** `npm run build` → 0 errors. 219/219 server + 129/129 client tests pass. Commits pushed.
+
+---
+
+## Session 80 — 2026-05-30: Housekeeping — CHANGELOG, env fix, doc updates
+
+**Goal:** Catch-up housekeeping before final production verification. No server access this session.
+
+**What was done:**
+
+- **Written `CHANGELOG.md` v1.0.0** — comprehensive release notes covering all features (auth, playback, search, library, admin, API, security, infrastructure, testing) plus notable bugs fixed. Located at `streamwave/CHANGELOG.md`.
+
+- **Fixed `.env.production.example` subdomain typo** — `NEXT_PUBLIC_API_URL` still had the old `https://api.streamwave.yourdomain.com` template value (second-level subdomain — breaks Cloudflare free SSL). Changed to `https://streamwave-api.yourdomain.com` to match the Session 79 guidance and the comment at the top of the file.
+
+- **Updated `server/CLAUDE.md` test count** — client test count was stale at 118/118. Updated to 129/129 with accurate per-file breakdown: 25 AudioEngine unit + 31 AudioEngine playback + 26 usePlayerStore + 31 useLibraryStore + 16 useSearchStore.
+
+- **Updated root `CLAUDE.md` progress table** — added Session 80 row.
+
+**State at session end:**
+
+- 219/219 server tests pass
+- 129/129 client tests pass
+- `npm run build` → 0 errors, 20 routes
+
+**What was NOT completed (carry to next session):**
+
+- On-server deployment: `./deploy.sh` with new code → Cloudflare cache purge → log out + back in → end-to-end verification
+- Upload MP3 files to `/data/streamwave/audio/` on server
+- Verify search, like, follow, playback on `https://streamwave.reapermusic.com`
+- Configure Google OAuth + GitHub OAuth callback URLs for production domain
+- `git tag v1.0.0 && git push --tags`
+
+**Files changed:**
+
+- `streamwave/CHANGELOG.md` — new file (v1.0.0)
+- `streamwave/.env.production.example` — NEXT_PUBLIC_API_URL template corrected
+- `streamwave/server/CLAUDE.md` — client test count updated
+- `streamwave/CLAUDE.md` (root) — Session 80 added to progress table
+
+**Result:** `npm run build` → 0 errors | 219/219 server + 129/129 client tests pass | `CHANGELOG.md` written

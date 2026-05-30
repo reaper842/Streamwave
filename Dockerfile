@@ -9,6 +9,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# NEXT_PUBLIC_API_URL is required at build time: next.config.ts bakes it into
+# the CSP connect-src header and next build throws if it is missing in production.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Generate Prisma client before building
 RUN npx prisma generate
 RUN npm run build

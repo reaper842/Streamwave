@@ -21,6 +21,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Pass at build time so next.config.ts can inline it into the CSP header.
+        # Docker Compose reads this from .env.production via --env-file.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     image: streamwave_nextjs:latest
     container_name: streamwave_nextjs
     restart: unless-stopped
