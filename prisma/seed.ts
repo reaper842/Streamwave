@@ -62,25 +62,23 @@ const TRACK_TITLE_SUFFIXES = [
   'Star',
 ]
 
-const LOCAL_AUDIO_FILES = [
-  'Cartoon, Jéja - On & On (feat. Daniel Levi)  Electronic Pop  NCS - Copyright Free Music.mp3',
-  'Janji - Heroes Tonight (feat. Johnning)  Progressive House  NCS - Copyright Free Music.mp3',
-  'Warriyo - Mortals (feat. Laura Brehm)  Future Trap  NCS - Copyright Free Music.mp3',
-]
+// Simple filenames — rename your 3 downloaded MP3s to these before uploading
+// to /data/streamwave/audio/ on the server.
+const LOCAL_AUDIO_FILES = ['track1.mp3', 'track2.mp3', 'track3.mp3']
 
 const MY_SONGS: { artist: string; album: string; title: string; genre: string; file: string }[] = [
   {
-    artist: 'Cartoon, Jéja',
-    album: 'Electronic Pop',
-    title: 'On & On (feat. Daniel Levi)',
-    genre: 'Electronic Pop',
+    artist: 'Alan Walker & Avaion',
+    album: 'I Remember U',
+    title: 'I Remember U',
+    genre: 'Electronic',
     file: LOCAL_AUDIO_FILES[0],
   },
   {
-    artist: 'Janji',
-    album: 'Progressive House',
-    title: 'Heroes Tonight (feat. Johnning)',
-    genre: 'Progressive House',
+    artist: 'NCS',
+    album: 'HTD',
+    title: 'HTD',
+    genre: 'Electronic',
     file: LOCAL_AUDIO_FILES[1],
   },
   {
