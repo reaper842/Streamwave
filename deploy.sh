@@ -29,6 +29,14 @@ fail() { echo -e "${RED}✗ $*${NC}"; exit 1; }
 
 command -v docker >/dev/null 2>&1 || fail "Docker not installed."
 
+# Validate required build-time variables are present in the env file
+# NEXT_PUBLIC_API_URL is baked into the Next.js bundle at build time (CSP header).
+# An empty value causes `next build` to fail with a cryptic error inside Docker.
+_api_url=$(grep -E '^NEXT_PUBLIC_API_URL=' "$ENV_FILE" | cut -d= -f2-)
+[[ -n "$_api_url" ]] || fail "NEXT_PUBLIC_API_URL is missing or empty in $ENV_FILE.
+  Add it: echo 'NEXT_PUBLIC_API_URL=https://streamwave-api.yourdomain.com' >> $ENV_FILE"
+unset _api_url
+
 # ── Sub-command dispatch ──────────────────────────────────────────────────────
 CMD="${1:-deploy}"
 
