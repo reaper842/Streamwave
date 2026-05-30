@@ -1932,3 +1932,44 @@ Also cleaned up a triple-assignment code smell in `play()` where `shuffleOrder` 
 - `streamwave/CLAUDE.md` (root) — Session 80 added to progress table
 
 **Result:** `npm run build` → 0 errors | 219/219 server + 129/129 client tests pass | `CHANGELOG.md` written
+
+---
+
+## Session 81 — 2026-05-30: Production deployment — Docker build arg fix + audio upload
+
+**Goal:** Get `https://streamwave.reapermusic.com` fully working end-to-end.
+
+**What was done:**
+
+- **Fixed Docker build failure** — `NEXT_PUBLIC_API_URL` is required at `next build` time (baked into CSP header by `next.config.ts`) but was not available inside the Docker builder stage. `env_file:` in `docker-compose.prod.yml` only affects the _running_ container, not the build stage. Fixed: `Dockerfile` adds `ARG NEXT_PUBLIC_API_URL` + `ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL` in the builder stage; `docker-compose.prod.yml` adds `build.args.NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}`.
+- **Added preflight guard to `deploy.sh`** — validates `NEXT_PUBLIC_API_URL` is present and non-empty in `.env.production` before running `docker compose build`, giving a clear error instead of a cryptic 60-second Docker build failure.
+- **Fixed `deploy.sh` summary output** — `$NEXTAUTH_URL` and `$NEXT_PUBLIC_API_URL` were printed as literal strings; now reads actual values from `.env.production` via `grep`.
+- **Updated `seed.ts` filenames** — changed `LOCAL_AUDIO_FILES` from NCS filenames with special characters/accents/spaces to `track1.mp3`, `track2.mp3`, `track3.mp3`. Avoids SCP encoding issues.
+- **Deployment succeeded** — `./deploy.sh` completed: both Docker images built (98s), all 5 containers running, migrations applied, seed ran (10 artists, 50 albums, 500 tracks, 6 playlists), Meilisearch synced. Health: `{"status":"ok","postgres":"ok","redis":"ok","meilisearch":"ok"}`.
+- **Search confirmed working** — screenshot showed "Aurora" search returning Top Result + Songs + Artists correctly.
+
+**What was NOT completed (carry to next session):**
+
+- **Audio file upload still pending** — tracks point to `track1/2/3.mp3` but files don't exist on server. User has files locally as `track1.mp3.mp3` (double extension from Windows hidden-extensions rename). Upload blocked by hostname resolution:
+  - `reapers` doesn't resolve on Windows (no `C:\Users\Catalin\.ssh\config`)
+  - WSL has no `openssh-client` and no `.ssh/` directory
+  - `transfer.sh` unreachable from Windows machine
+- Log out and back in on browser for new `COOKIE_DOMAIN` cookie to take effect
+- Verify like/follow/save buttons and playback after audio is uploaded
+
+**Key technical notes for future sessions:**
+
+- **Audio upload — next session options:** (1) Run `curl -s ifconfig.me` on server → use real IP in Windows PowerShell SCP (non-admin terminal). (2) `sudo apt install openssh-client -y` in WSL, then WSL scp. (3) Install `yt-dlp` on server and download NCS tracks directly from YouTube.
+- **`NEXT_PUBLIC_API_URL` must be a Docker build arg** — `env_file:` is runtime-only. Always declare public Next.js env vars read in `next.config.ts` as `ARG`+`ENV` in Dockerfile and `args:` in docker-compose.
+- **`deploy.sh` loses execute bit on git pull** — git doesn't preserve `+x` across Windows→Linux. Always `chmod +x deploy.sh` after pulling on the server.
+- **Windows hidden extensions** — renaming `track.mp3` to `track1.mp3` in Explorer (extensions hidden) produces `track1.mp3.mp3`. Use PowerShell `dir` to see actual names.
+- **`reapers` hostname** — only resolves from specific terminal where SSH was configured. Not in any hosts file, SSH config, or DNS. Use server's real IP from `curl -s ifconfig.me`.
+
+**Files changed (all committed and pushed):**
+
+- `Dockerfile` — `ARG`/`ENV NEXT_PUBLIC_API_URL` in builder stage
+- `docker-compose.prod.yml` — `build.args.NEXT_PUBLIC_API_URL`
+- `deploy.sh` — preflight guard + real URL display
+- `prisma/seed.ts` — `LOCAL_AUDIO_FILES` → `track1/2/3.mp3`
+
+**Result:** `npm run build` → 0 errors | 219/219 server + 129/129 client tests | 4 commits pushed | Production app reachable + search working | Audio files pending upload
