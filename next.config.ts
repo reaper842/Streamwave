@@ -47,13 +47,9 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      [
-        "img-src 'self' data: blob: https://picsum.photos",
-        process.env['NODE_ENV'] !== 'production' ? 'https://fastly.picsum.photos' : null,
-        'https://images.unsplash.com',
-      ]
-        .filter(Boolean)
-        .join(' '),
+      // fastly.picsum.photos is always included — picsum.photos redirects here at CDN level,
+      // and Chrome CSP L2 validates every hop. Both dev seed data and production demo data use picsum.
+      "img-src 'self' data: blob: https://picsum.photos https://fastly.picsum.photos https://images.unsplash.com",
       "media-src 'self' blob: data:",
       [
         "connect-src 'self'",
