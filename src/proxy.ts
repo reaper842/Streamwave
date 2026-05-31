@@ -34,9 +34,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Determine cookie name based on protocol (secure vs non-secure)
-  const isSecure = request.url.startsWith('https://')
-  const cookieName = isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token'
+  // When COOKIE_DOMAIN is set, authConfig overrides the session cookie name to
+  // 'authjs.session-token' (no __Secure- prefix) so it can carry a Domain attribute.
+  // Without COOKIE_DOMAIN, NextAuth uses '__Secure-authjs.session-token' on HTTPS.
+  // Cloudflare sets X-Forwarded-Proto: https, so request.url is always https:// here —
+  // we cannot rely on it to detect the actual cookie name NextAuth chose.
+  const cookieName = process.env['COOKIE_DOMAIN']
+    ? 'authjs.session-token'
+    : request.url.startsWith('https://')
+      ? '__Secure-authjs.session-token'
+      : 'authjs.session-token'
   const sessionToken = request.cookies.get(cookieName)?.value
 
   if (!sessionToken) {
