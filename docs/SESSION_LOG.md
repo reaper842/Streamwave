@@ -1973,3 +1973,50 @@ Also cleaned up a triple-assignment code smell in `play()` where `shuffleOrder` 
 - `prisma/seed.ts` — `LOCAL_AUDIO_FILES` → `track1/2/3.mp3`
 
 **Result:** `npm run build` → 0 errors | 219/219 server + 129/129 client tests | 4 commits pushed | Production app reachable + search working | Audio files pending upload
+
+---
+
+## Session 82 — 2026-05-31: Audio upload + production login fix
+
+**Goal:** Upload track1/2/3.mp3 to the server, re-seed the database, and get end-to-end login + playback working on `streamwave.reapermusic.com`.
+
+**What was done:**
+
+- **Renamed MP3 files** on Windows (PowerShell `Rename-Item`): "I Remember U by Alan Walker & Avaion.mp3" → `track1.mp3`, "HTD by NCS.mp3" → `track2.mp3`, "Mortals (feat. Laura Brehm) by Warriyo.mp3" → `track3.mp3`. Files in `C:\Users\Catalin\Downloads\`.
+- **SCP blocked** — port 22 and 2222 both timed out. Used Google Drive direct download URLs (`drive.usercontent.google.com`) from the server terminal instead.
+- **Audio upload** — Downloaded all 3 files to `/data/streamwave/audio/` on the server (7.0 MB, 6.7 MB, 3.3 MB). Confirmed in Docker volume mount: `docker exec streamwave_nextjs ls /app/public/audio/` → all 3 files visible.
+- **Fixed CSP bug** — `fastly.picsum.photos` was missing from production `img-src` (was dev-only). Made unconditional since demo seed uses picsum in production. `next.config.ts` updated.
+- **Re-seeded database** — DB had old audio URLs (`/audio/Cartoon, Jéja - On & On...mp3` etc.) from a pre-Session-81 seed. Ran `./deploy.sh seed` → 10 artists, 50 albums, 500 tracks, 6 playlists with correct `/audio/track1.mp3` URLs + Meilisearch re-synced.
+- **Diagnosed login failure** — Systematic debugging revealed `authorize()` worked perfectly (network, Fastify, credentials all confirmed). Added `AUTH_SECRET` to `.env.production` (NextAuth v5 primary env var). Still failed.
+- **Root cause found** — `proxy.ts` cookie name mismatch: Cloudflare sets `X-Forwarded-Proto: https`, so `request.url.startsWith('https://')` was `true` inside Next.js. `proxy.ts` looked for `__Secure-authjs.session-token` but our custom `authConfig` (with `COOKIE_DOMAIN`) forces the cookie name to `authjs.session-token` (no `__Secure-` prefix). Cookie never found → immediate redirect to `/login` on every request.
+- **Fixed `proxy.ts`** — Added `COOKIE_DOMAIN`-aware cookie name selection: when `COOKIE_DOMAIN` is set, always use `'authjs.session-token'`; otherwise fall back to protocol-based selection.
+- **All 4 fixes committed and pushed** to `main`; final `./deploy.sh` run on server to apply `proxy.ts` fix. Login should now work.
+
+**What was NOT completed (carry to next session):**
+
+- **End-to-end verification** — Login fix was deployed at end of session; full verification (login → play → like/follow/save → search) needed next session.
+- **Tag v1.0.0** — After end-to-end verification passes.
+- **Remove/verify** the `AUTH_SECRET` addition to `.env.production` is correct (should be same value as `NEXTAUTH_SECRET`).
+
+**Key technical notes for future sessions:**
+
+- **`proxy.ts` cookie name mismatch** — When running behind Cloudflare (or any reverse proxy that sets `X-Forwarded-Proto: https`), `request.url` inside Next.js middleware starts with `https://`. If `authConfig` uses a custom cookie name via `COOKIE_DOMAIN`, `proxy.ts` must NOT rely on the URL protocol to pick the cookie name — it must use the same name the authConfig chose. Fixed: `cookieName = process.env['COOKIE_DOMAIN'] ? 'authjs.session-token' : (isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token')`.
+- **`authorize()` called BEFORE proxy.ts runs on auth routes** — CSRF check happens before `authorize()` in NextAuth. If CSRF failed, `authorize()` would never be called. The fact that `[AUTH] authorize:` logs appeared confirmed CSRF was fine and the bug was post-authorize.
+- **`AUTH_SECRET` in `.env.production`** — NextAuth v5 beta.30 uses `AUTH_SECRET` as the primary env var. `NEXTAUTH_SECRET` is also accepted for backwards compatibility. Both are now set to the same value. The deploy.sh on the server added `AUTH_SECRET` with the same value as `NEXTAUTH_SECRET`.
+- **Google Drive direct download URL** — `https://drive.usercontent.google.com/download?id=FILE_ID&export=download` (followed redirect from `drive.google.com/uc?id=FILE_ID&export=download&confirm=t`). For files under 25MB, no auth required. Each download took ~0.4–0.8s at 9 MB/s.
+- **Server SCP port** — Port 22 and 2222 both timed out from Windows. Server SSH is not exposed to the internet. Use Google Drive, wget, or another HTTP-based file transfer for future audio uploads.
+- **deploy.sh loses execute bit** — Always `chmod +x deploy.sh` after `git checkout deploy.sh` on the server (git doesn't preserve `+x` across Windows→Linux).
+- **On next session**: Run `./deploy.sh` one more time to pick up the proxy.ts fix (or confirm it was already deployed at end of Session 82). Then do full end-to-end verification.
+
+**Files changed (all committed and pushed):**
+
+- `next.config.ts` — `fastly.picsum.photos` always in `img-src` (was dev-only)
+- `src/proxy.ts` — `COOKIE_DOMAIN`-aware cookie name selection
+- `src/lib/auth/config.ts` — debug logging added then removed (net no change)
+
+**Server changes (not in git):**
+
+- `/data/streamwave/audio/` — `track1.mp3` (7.0 MB), `track2.mp3` (6.7 MB), `track3.mp3` (3.3 MB)
+- `/opt/streamwave/.env.production` — `AUTH_SECRET` added (same value as `NEXTAUTH_SECRET`)
+
+**Result:** 219/219 server + 129/129 client tests | 0 build errors | Audio on server | Login fix deployed
