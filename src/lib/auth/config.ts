@@ -72,9 +72,13 @@ export const authConfig: NextAuthConfig = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        if (!credentials?.email || !credentials?.password) {
+          console.error('[AUTH] authorize: missing credentials')
+          return null
+        }
 
         try {
+          console.error(`[AUTH] authorize: calling ${FASTIFY_API_URL}/api/v1/auth/login`)
           const res = await fetch(`${FASTIFY_API_URL}/api/v1/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -84,9 +88,10 @@ export const authConfig: NextAuthConfig = {
             }),
           })
 
+          console.error(`[AUTH] authorize: Fastify responded ${res.status} ok=${res.ok}`)
           if (!res.ok) return null
 
-          const { data } = (await res.json()) as {
+          const json = (await res.json()) as {
             data: {
               user: {
                 id: string
@@ -97,6 +102,8 @@ export const authConfig: NextAuthConfig = {
               }
             }
           }
+          console.error('[AUTH] authorize: user id=', json?.data?.user?.id)
+          const { data } = json
 
           return {
             id: data.user.id,
@@ -106,7 +113,8 @@ export const authConfig: NextAuthConfig = {
             avatarUrl: data.user.avatarUrl,
             isAdmin: data.user.isAdmin,
           }
-        } catch {
+        } catch (err) {
+          console.error('[AUTH] authorize: caught error', err)
           return null
         }
       },
